@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CORTEX — AGI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div id="mesh"></div>
+  <header class="top">
+    <div class="brand">
+      <canvas id="orb" width="44" height="44" aria-hidden="true"></canvas>
+      <div>
+        <div class="logo">CORTEX</div>
+        <div class="tag">self-improving general intelligence</div>
+      </div>
+    </div>
+    <div class="vitals" id="vitals">
+      <span class="pill" id="src-pill">bootstrap</span>
+      <span class="pill dim" id="turn-pill">turns 0</span>
+      <span class="pill dim" id="cycle-pill">cycles 0</span>
+      <span class="pill dim" id="loss-pill">loss —</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="rail left">
+      <section class="card">
+        <h2>Identity</h2>
+        <p class="lede" id="self-desc">Loading mind…</p>
+        <ul class="kv" id="identity-kv"></ul>
+      </section>
+      <section class="card">
+        <h2>Goals</h2>
+        <div id="goals" class="goals"></div>
+      </section>
+      <section class="card">
+        <h2>Constitution</h2>
+        <ol id="principles" class="principles"></ol>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div id="log" class="log">
+        <div class="msg agi">
+          <div class="who">cortex</div>
+          <div class="body">I am awake. I load model/model.gguf or model/model.safetensors when you give me weights; until then I think with my own neural core and I get better every turn. Ask me who I am, teach me your name, or tell me to improve myself.</div>
+        </div>
+      </div>
+      <form id="composer" autocomplete="off">
+        <div class="chips" id="chips">
+          <button type="button" data-q="Who are you?">who are you</button>
+          <button type="button" data-q="Remember that my name is Ada">remember me</button>
+          <button type="button" data-q="What is 17 * 3?">math</button>
+          <button type="button" data-q="How do you work?">architecture</button>
+          <button type="button" data-q="Improve yourself">improve</button>
+        </div>
+        <div class="row">
+          <textarea id="input" rows="2" placeholder="Speak to CORTEX…"></textarea>
+          <button id="send" type="submit" title="Send">↑</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="rail right">
+      <section class="card">
+        <h2>Thought stream</h2>
+        <div id="thoughts" class="thoughts"></div>
+      </section>
+      <section class="card">
+        <h2>Memory</h2>
+        <div id="facts" class="facts"></div>
+      </section>
+      <section class="card">
+        <h2>Skills &amp; growth</h2>
+        <div id="skills" class="skills"></div>
+        <canvas id="chart" width="360" height="90"></canvas>
+        <button id="cycle-btn" type="button" class="ghost">Run improvement cycle</button>
+      </section>
+    </aside>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
