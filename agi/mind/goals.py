@@ -54,15 +54,21 @@ class Goals:
         self.path.write_text(json.dumps(self.items, indent=2), encoding="utf-8")
 
     def add(self, title: str, why: str = "") -> dict:
+        title = title.strip()[:160]
+        for g in self.items:
+            if g.get("title", "").lower() == title.lower():
+                return g
         g = {
             "id": f"g-{int(time.time()*1000)}",
-            "title": title.strip()[:160],
+            "title": title,
             "why": why.strip()[:400],
             "status": "active",
             "progress": 0.0,
             "created": time.time(),
         }
         self.items.append(g)
+        if len(self.items) > 40:
+            self.items = [x for x in self.items if x.get("id") in {s["id"] for s in SEED_GOALS}] + self.items[-20:]
         self.save()
         return g
 

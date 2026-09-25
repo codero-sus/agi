@@ -30,6 +30,26 @@ pip install llama-cpp-python
 
 Drop `model.gguf` or `model.safetensors` into `model/` and restart, or `POST /api/reload-model`.
 
+## Efficiency (v0.2)
+
+- **KV-cached generation** — the prompt is encoded once
+- **Adam** instead of vanilla SGD, reused grad buffers
+- **Background trainer** — replies never wait on weight updates
+- **Debounced checkpoints** — safetensors writes every N steps, not every token
+- **Numpy memory index** — recall is a matrix-vector product
+- **Think runs in a worker thread** so the WebSocket event loop stays live
+- gzip + static cache headers
+
+## Features
+
+- Teach: `learn this: Title — body` (persists under `data/knowledge.json`)
+- Search memory (UI box or `GET /api/search?q=`)
+- Forget facts: `forget that …`
+- Convert units, time (UTC + IST), SHA-256, sandboxed Python
+- Summarize the conversation, export transcript
+- Dream replay: idle trainer re-learns old episodes
+- Stop generation, restore history on reload
+
 ## What “self-improvement” means here
 
 After every turn CORTEX:
@@ -37,19 +57,24 @@ After every turn CORTEX:
 1. Stores **episodic memory** (the conversation)
 2. Extracts **semantic facts** (`user name Ada`)
 3. **Critiques** its own reply and may add a lesson / constitution clause
-4. Takes **gradient steps** on CortexGPT and writes `model/model.safetensors`
+4. Queues **Adam steps** on CortexGPT (background) → `model/model.safetensors`
 5. Every few turns: **self-eval battery**, skill synthesis, extra training
 
 Skills live in `skills/` as real Python files the agent can write.
 
-Persistent mind state is under `data/` (SQLite + identity + goals).
+Persistent mind state is under `data/` (SQLite + identity + goals + taught articles).
 
 ## API
 
 - `GET /` — control-plane UI
-- `WS /ws` — streaming thoughts + tokens
+- `WS /ws` — streaming thoughts + tokens (`ping`, `stop`, `improve`)
 - `POST /api/chat` — `{ "message": "..." }`
 - `GET /api/state` — identity, memory, loss, skills
+- `GET /api/history` — recent dialogue
+- `GET /api/search?q=` — memory + knowledge
+- `POST /api/teach` — `{ "title", "body" }`
+- `POST /api/forget?q=` — drop matching facts
+- `GET /api/export` — transcript
 - `POST /api/improve` — force an improvement cycle
 - `POST /v1/chat/completions` — OpenAI-compatible
 - `GET /v1/models`
@@ -58,10 +83,9 @@ Persistent mind state is under `data/` (SQLite + identity + goals).
 
 ```
 user
-  → custom server (FastAPI)
+  → custom server (FastAPI, gzip, worker-thread think)
     → cognition (understand → recall → plan → act → reflect)
-      → memory / knowledge / tools / skills
-      → ModelEngine (GGUF | safetensors | CortexGPT)
-    → self-improvement loop
-      → facts, lessons, constitution, skills, SGD, checkpoint
+      → numpy memory index / knowledge / tools / skills
+      → ModelEngine (GGUF | safetensors | CortexGPT + KV cache)
+    → background trainer (Adam, dream, debounce checkpoint)
 ```

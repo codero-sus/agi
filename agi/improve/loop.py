@@ -1,8 +1,8 @@
 """The self-improvement loop.
 
-Light pass: after every turn — facts, critique, a few gradient steps.
+Light pass: after every turn — facts, critique, queue gradient steps (non-blocking).
 Medium pass: every N turns — skills, constitution, self-eval.
-Heavy pass: background — more training, memory consolidation.
+Heavy pass: background trainer — extra Adam steps and dream replay.
 """
 
 from __future__ import annotations
@@ -44,11 +44,11 @@ class SelfImprovement:
         self.recent_intents: list[str] = []
 
     def after_turn(self, user: str, reply: str, intent: str) -> dict:
-        """Light improvement. Always runs, never blocks the user for long."""
         mem = self.agi.memory
         events: list[dict] = []
 
-        for subj, pred, obj in mem.extract_from_user(user):
+        extracted = mem.extract_from_user(user)
+        for subj, pred, obj in extracted:
             mem.add_fact(subj, pred, obj, 0.9)
             events.append({"kind": "fact", "text": f"{subj} {pred} {obj}"})
             mem.log_event("fact", {"subject": subj, "predicate": pred, "object": obj})
@@ -63,18 +63,16 @@ class SelfImprovement:
         self.recent_intents = self.recent_intents[-20:]
 
         train_text = f"<|user|> {user}\n<|agi|> {reply}\n"
-        loss = 0.0
-        try:
-            loss = self.agi.engine.train_on(train_text, steps=max(2, CORTEX_TRAIN_STEPS // 8))
-            if loss:
-                mem.log_metric("loss", loss)
-                events.append({"kind": "train", "text": f"neural loss {loss:.3f}"})
-        except Exception as e:
-            events.append({"kind": "train-error", "text": str(e)})
+        queued = self.agi.engine.train_on(train_text, steps=max(2, CORTEX_TRAIN_STEPS // 2), blocking=False)
+        if queued is not None:
+            events.append({"kind": "train", "text": "queued neural steps"})
+        loss = float(self.agi.engine.trainer.last_loss or 0.0)
+        if loss:
+            mem.log_metric("loss", loss)
 
         self.agi.identity.bump_turn()
         self.agi.goals.nudge("become-more-capable", 0.002)
-        if mem.extract_from_user(user):
+        if extracted:
             self.agi.goals.nudge("know-the-user", 0.04)
 
         if self.agi.identity.data["turns"] % 5 == 0:
@@ -92,12 +90,10 @@ class SelfImprovement:
         agi.identity.bump_cycle()
         self.last_cycle = time.time()
 
-        # 1. maybe write a skill for a repeated intent
         skill_ev = self._maybe_skill()
         if skill_ev:
             events.append(skill_ev)
 
-        # 2. constitution evolution from lessons
         for lesson in agi.memory.lessons(k=5):
             if lesson.lower().startswith("principle:"):
                 if agi.identity.add_principle(lesson.split(":", 1)[1].strip()):
@@ -105,22 +101,15 @@ class SelfImprovement:
                     agi.memory.log_event("constitution", {"text": lesson})
                     agi.goals.nudge("keep-constitution", 0.03)
 
-        # 3. self-eval battery
         score = self._self_eval()
         agi.memory.log_metric("self_eval", score)
         events.append({"kind": "self-eval", "text": f"self-eval {score:.0%}"})
         agi.memory.log_event("self-eval", {"score": score, "reason": reason})
 
-        # 4. extra neural practice on a compact corpus of identity + lessons
         corpus = self._training_corpus()
-        try:
-            loss = agi.engine.train_on(corpus, steps=CORTEX_TRAIN_STEPS)
-            agi.memory.log_metric("loss", loss)
-            events.append({"kind": "train", "text": f"cycle train loss {loss:.3f}"})
-        except Exception:
-            pass
+        agi.engine.train_on(corpus, steps=CORTEX_TRAIN_STEPS, blocking=False)
+        events.append({"kind": "train", "text": f"queued {CORTEX_TRAIN_STEPS} cycle steps"})
 
-        # 5. consolidate: if many episodes, distill a lesson
         counts = agi.memory.counts()
         if counts["episodes"] and counts["episodes"] % 10 == 0:
             distilled = (
@@ -144,7 +133,6 @@ class SelfImprovement:
             return "When asked who I am, state the name CORTEX and how I improve."
         if "?" in user and len(reply) < 40:
             return "Questions deserve a reasoned answer, not a fragment."
-        # occasional generic distillation
         if intent == "remember":
             return "Persist user facts as triples and confirm what was stored."
         return None
@@ -173,7 +161,6 @@ class SelfImprovement:
         return {"kind": "skill", "text": f"wrote skill {name} → {path.name}"}
 
     def _self_eval(self) -> float:
-        """Score canned questions using the composer path (no infinite recursion)."""
         hits = 0
         for q, needles in SELF_TESTS:
             try:
@@ -191,7 +178,8 @@ class SelfImprovement:
         dialogue = "\n".join(
             f"{d['role']}: {d['content']}" for d in self.agi.memory.recent_dialogue(k=10)
         )
-        return f"{ident}\nLessons:\n{lessons}\nFacts:\n{facts}\nDialogue:\n{dialogue}\n"
+        taught = "\n".join(f"{a.title}. {a.body}" for a in self.agi.knowledge.taught[-6:])
+        return f"{ident}\nLessons:\n{lessons}\nFacts:\n{facts}\nTaught:\n{taught}\nDialogue:\n{dialogue}\n"
 
     def snapshot(self) -> dict:
         return {

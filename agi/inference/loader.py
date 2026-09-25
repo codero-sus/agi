@@ -20,8 +20,10 @@ from agi.config import (
     SAFETENSORS_PATH,
     TEMPERATURE,
     TOP_K,
+    TOP_P,
     ensure_dirs,
 )
+from agi.improve.trainer import BackgroundTrainer
 
 from .cortex_gpt import CortexGPT
 from .gguf_engine import LlamaCppEngine, parse_gguf
@@ -50,9 +52,11 @@ class ModelEngine:
     def __init__(self):
         ensure_dirs()
         self.cortex = CortexGPT()
-        self.external = None  # llama cpp or numpy llama/gpt2
+        self.external = None
         self.info = EngineInfo("bootstrap", "cortex-gpt", True, {"params": self.cortex.param_count()})
         self.lock = threading.Lock()
+        self.stop = threading.Event()
+        self.trainer = BackgroundTrainer(self)
         self._discover()
 
     def _discover(self) -> None:
@@ -124,7 +128,6 @@ class ModelEngine:
             self.external = runner
             self.info = EngineInfo("safetensors", f"numpy-{kind}", True, info)
             return
-        # Unusable external file — keep bootstrap but report the file.
         loaded = CortexGPT.load(path)
         if loaded is not None:
             self.cortex = loaded
@@ -137,7 +140,6 @@ class ModelEngine:
             info,
             warning=info.get("error") or "Could not load model.safetensors",
         )
-        # still keep cortex as generator
         self.info.ready = True
         self.info.backend = "cortex-gpt (fallback)"
 
@@ -145,13 +147,21 @@ class ModelEngine:
         return self.external is not None
 
     def generate(self, prompt: str, max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> str:
+        self.stop.clear()
         with self.lock:
             if self.external is not None:
                 try:
                     return self.external.generate(prompt, max_new=max_new, temperature=temperature, top_k=TOP_K)
                 except TypeError:
                     return self.external.generate(prompt, max_new=max_new, temperature=temperature)
-            return self.cortex.generate(prompt, max_new=min(max_new, 96), temperature=temperature)
+            return self.cortex.generate(
+                prompt,
+                max_new=min(max_new, 96),
+                temperature=temperature,
+                top_k=TOP_K,
+                top_p=TOP_P,
+                stop=self.stop,
+            )
 
     def stream(self, prompt: str, max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> Iterator[str]:
         ext = self.external
@@ -159,7 +169,6 @@ class ModelEngine:
             yield from ext.stream(prompt, max_new=max_new, temperature=temperature)
             return
         text = self.generate(prompt, max_new=max_new, temperature=temperature)
-        # chunk so the UI still streams
         buf = ""
         for ch in text:
             buf += ch
@@ -169,21 +178,25 @@ class ModelEngine:
         if buf:
             yield buf
 
-    def train_on(self, text: str, steps: int = 4) -> float:
-        """Online self-improvement of the internal CortexGPT."""
+    def train_on(self, text: str, steps: int = 4, blocking: bool = False) -> float:
         if not text or len(text) < 8:
             return 0.0
+        if not blocking:
+            self.trainer.submit(text, steps)
+            return float(self.trainer.last_loss or 0.0)
         loss = 0.0
         n = 0
         for _ in range(max(1, steps)):
             loss += self.cortex.train_step(text)
             n += 1
         avg = loss / max(n, 1)
-        try:
-            self.cortex.save(SAFETENSORS_PATH)
-        except Exception:
-            pass
+        self.trainer._dirty += n
+        if self.trainer._dirty >= 8:
+            self.trainer.flush_save()
         return avg
+
+    def request_stop(self) -> None:
+        self.stop.set()
 
     def neural_stats(self) -> dict:
         hist = self.cortex.loss_history
@@ -192,6 +205,7 @@ class ModelEngine:
             "params": self.cortex.param_count(),
             "last_loss": hist[-1] if hist else None,
             "loss_history": hist[-80:],
+            "trainer": self.trainer.snapshot(),
         }
 
 

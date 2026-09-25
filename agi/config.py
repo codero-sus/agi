@@ -3,6 +3,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+# Keep BLAS from oversubscribing the 2-core box.
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "2")
+
 ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = Path(os.environ.get("AGI_MODEL_DIR", ROOT / "model"))
 DATA_DIR = Path(os.environ.get("AGI_DATA_DIR", ROOT / "data"))
@@ -26,15 +32,21 @@ CORTEX_HEADS = 8
 CORTEX_CTX = 256
 CORTEX_VOCAB = 259  # 256 utf-8 bytes + BOS/EOS/PAD
 CORTEX_LR = 3e-4
-CORTEX_TRAIN_STEPS = 24
+CORTEX_TRAIN_STEPS = 8  # blocking cycle steps; more happen in the background
+CORTEX_HOT_STEPS = 0  # request path never blocks on SGD
+CHECKPOINT_EVERY = 12
+DREAM_IDLE_SEC = 20.0
 
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.8
 TOP_K = 40
+TOP_P = 0.95
 
 # Refuse to mmap enormous dense weights into 4GB RAM.
 MAX_NUMPY_PARAMS = 120_000_000
 MAX_NUMPY_BYTES = 1_600_000_000
+
+MEMORY_INDEX_CAP = 2000
 
 
 def ensure_dirs() -> None:

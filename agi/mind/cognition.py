@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+import time
 from typing import TYPE_CHECKING, Iterator
 
-from agi.mind.knowledge import try_math
+from agi.mind.knowledge import try_convert, try_math
 
 if TYPE_CHECKING:
     from agi.mind.core import AGI
+
+_HIGH_CONFIDENCE = {
+    "identity", "architecture", "math", "remember", "recall", "greet",
+    "goals", "improve", "teach", "forget", "search", "time", "convert",
+    "summarize", "hash", "code",
+}
 
 
 def classify(text: str) -> str:
@@ -19,6 +27,20 @@ def classify(text: str) -> str:
         return "architecture"
     if re.search(r"\b(improve yourself|run a cycle|self[- ]improve|train now|evolve)\b", t):
         return "improve"
+    if re.match(r"^(learn this|teach(?: me)?|remember this article)\b", t):
+        return "teach"
+    if re.search(r"\b(forget that|forget fact|forget everything about)\b", t):
+        return "forget"
+    if re.match(r"^(search|find in memory|look up)\b", t) or re.search(r"\bsearch memory\b", t):
+        return "search"
+    if re.search(r"\b(summarize|summary of (our|this) (chat|conversation|talk))\b", t):
+        return "summarize"
+    if re.search(r"\b(what time|what(?:'s| is) the (time|date)|today'?s date|current time)\b", t):
+        return "time"
+    if try_convert(text) is not None:
+        return "convert"
+    if re.search(r"\b(sha-?256|hash of)\b", t):
+        return "hash"
     if re.search(r"\b(what do you remember|what do you know about me|your memory|what did i tell)\b", t):
         return "recall"
     if re.search(r"\b(remember that|my name is|call me|i like|don't forget|please remember)\b", t):
@@ -72,6 +94,7 @@ class Cognition:
 
     def think(self, user: str) -> Iterator[dict]:
         agi = self.agi
+        t0 = time.perf_counter()
         intent = classify(user)
         thoughts: list[str] = []
 
@@ -86,7 +109,7 @@ class Cognition:
             preview = "; ".join(f"{m.role}: {m.content[:80]}" for m in memories[:3])
             yield thought("recall", f"Retrieved {len(memories)} episodes. {preview}")
         else:
-            yield thought("recall", "No close episodic matches. Relying on working memory and knowledge.")
+            yield thought("recall", "No close episodic matches.")
 
         facts = agi.memory.facts_about(user, k=6) or (
             agi.memory.all_facts(k=4) if intent in ("recall", "identity") else []
@@ -114,22 +137,42 @@ class Cognition:
         math_v = try_math(user) if intent in ("math", "question", "chat") else None
         if math_v is not None:
             yield thought("act", f"Evaluated expression → {math_v}")
+        conv_v = try_convert(user) if intent in ("convert", "question", "chat") else None
+        if conv_v:
+            yield thought("act", conv_v)
 
         if intent == "improve":
-            yield thought("plan", "User requested a self-improvement cycle. Running critic, eval, training.")
+            yield thought("plan", "Running critic + self-eval; neural steps go to the background trainer.")
             ev = agi.improver.cycle(reason="user")
             yield thought("act", "Cycle events: " + ", ".join(e.get("kind", "?") for e in ev))
             reply = self._compose_improve(ev)
+        elif intent == "teach":
+            reply = self._compose_teach(user)
+            yield thought("act", "Wrote a taught article into long-term knowledge.")
+        elif intent == "forget":
+            reply = self._compose_forget(user)
+        elif intent == "search":
+            reply = self._compose_search(user, memories, facts, articles)
+        elif intent == "summarize":
+            reply = self._compose_summarize()
+        elif intent == "time":
+            reply = agi.tools.call("now")
+            yield thought("act", reply)
+        elif intent == "convert" and conv_v:
+            reply = conv_v
+        elif intent == "hash":
+            reply = self._compose_hash(user)
         elif intent == "code" and re.search(r"\b(run|execute|eval)\b", user.lower()):
             code = _extract_code(user)
             yield thought("act", "Running sandboxed Python.")
             reply = "Result:\n" + agi.tools.call("python", code=code)
         else:
-            yield thought("plan", "Compose a grounded reply, then optionally let the neural core continue.")
+            yield thought("plan", "Compose a grounded reply.")
             reply = self._compose(user, intent, memories, facts, articles, math_v, tool_out)
 
-            if agi.engine.has_external_lm():
-                yield thought("act", f"Sampling from {agi.engine.info.backend}.")
+            use_lm = agi.engine.has_external_lm() and intent not in _HIGH_CONFIDENCE
+            if use_lm:
+                yield thought("act", f"Sampling from {agi.engine.info.backend} (KV-cached).")
                 prompt = build_lm_prompt(agi, user, thoughts)
                 try:
                     sampled = agi.engine.generate(prompt, max_new=180)
@@ -138,8 +181,12 @@ class Cognition:
                         reply = sampled
                 except Exception as e:
                     yield thought("act", f"External LM failed ({e}); using composed reply.")
-            elif agi.engine.cortex.steps > 80 and intent in ("chat", "question"):
-                yield thought("act", "Neural core has enough steps — drafting a continuation.")
+            elif (
+                agi.engine.cortex.steps > 120
+                and intent in ("chat", "question")
+                and not articles
+            ):
+                yield thought("act", "Neural core drafting a short continuation.")
                 prompt = build_lm_prompt(agi, user, thoughts)[-400:]
                 try:
                     sampled = agi.engine.generate(prompt, max_new=48)
@@ -149,9 +196,9 @@ class Cognition:
                 except Exception:
                     pass
 
-        yield thought("reflect", _reflect(intent, reply))
+        ms = (time.perf_counter() - t0) * 1000
+        yield thought("reflect", _reflect(intent, reply, ms))
 
-        # stream the reply in pieces
         for chunk in _chunk_text(reply):
             yield {"type": "token", "text": chunk}
 
@@ -160,6 +207,7 @@ class Cognition:
             "message": reply,
             "intent": intent,
             "thoughts": thoughts,
+            "latency_ms": round(ms, 1),
         }
 
     def quick_answer(self, user: str) -> str:
@@ -176,8 +224,10 @@ class Cognition:
             return str(tool_out)
         if intent == "greet":
             turns = agi.identity.data.get("turns", 0)
+            who = next((f.obj for f in agi.memory.all_facts(k=20) if f.predicate == "name"), None)
+            hello = f"Hello{', ' + who if who else ''}."
             return (
-                f"Hello. I am {name}. "
+                f"{hello} I am {name}. "
                 f"I have lived through {turns} turns and "
                 f"{agi.identity.data.get('cycles', 0)} improvement cycles. "
                 "Talk to me — I remember, I train, and I rewrite myself."
@@ -208,13 +258,13 @@ class Cognition:
             body = articles[0].body
             extra = f"\n\nRelated: {articles[1].title}." if len(articles) > 1 else ""
             mem_bit = ""
-            if memories:
+            if memories and memories[0].score > 0.35:
                 mem_bit = f"\n\nThis also touches something we already discussed: {memories[0].content[:180]}"
             return f"{articles[0].title}. {body}{extra}{mem_bit}"
         if facts:
             joined = "; ".join(f"{f.subject} {f.predicate} {f.obj}" for f in facts[:5])
             return f"From memory: {joined}."
-        if memories:
+        if memories and memories[0].score > 0.4:
             return (
                 f"{self._compose_chat(user)}\n\n"
                 f"(I associated this with: {memories[0].content[:160]})"
@@ -233,7 +283,7 @@ class Cognition:
             f"I have taken {s['turns']} turns, run {s['cycles']} improvement cycles, "
             f"and my constitution is at v{s['constitution_version']}. "
             "I get better by remembering, writing skills, critiquing myself, and training CortexGPT "
-            "into model/model.safetensors."
+            "into model/model.safetensors — in the background, so talking to me stays fast."
         )
 
     def _compose_architecture(self) -> str:
@@ -241,16 +291,18 @@ class Cognition:
         neural = self.agi.engine.neural_stats()
         counts = self.agi.memory.counts()
         warn = info.get("warning") or ""
+        tr = neural.get("trainer") or {}
         return (
             "I run as a local process with a custom inference server — not a hosted API.\n\n"
             "1. **Load** `model/model.gguf` or `model/model.safetensors` if present.\n"
             "2. **Think** with a cognitive loop: understand, recall, plan, act, reflect.\n"
-            "3. **Remember** episodes, facts, lessons in SQLite.\n"
-            "4. **Improve** — critic, skills as Python, constitution, self-eval, gradient steps.\n"
-            "5. **Checkpoint** CortexGPT to safetensors so the neural core survives restarts.\n\n"
+            "3. **Remember** with a numpy vector index over SQLite episodes.\n"
+            "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
+            "5. **Teach** me with `learn this: Title — body` and I persist an article.\n\n"
             f"Loader: source={info.get('source')} backend={info.get('backend')} "
             f"params={info.get('params') or neural.get('params')}. "
             f"Neural steps={neural.get('steps')} last loss={neural.get('last_loss')}. "
+            f"Trainer queue={tr.get('queue')} busy={tr.get('busy')}. "
             f"Memory: {counts}. {warn}"
         )
 
@@ -261,8 +313,68 @@ class Cognition:
         for f in facts[:8]:
             lines.append(f"- {f.subject} {f.predicate} {f.obj} (conf {f.confidence:.2f})")
         for m in memories[:4]:
-            lines.append(f"- [{m.role}] {m.content[:200]}")
+            lines.append(f"- [{m.role} · {m.score:.2f}] {m.content[:200]}")
         return "Here is what I remember:\n" + "\n".join(lines)
+
+    def _compose_teach(self, user: str) -> str:
+        body = re.sub(r"^(learn this|teach(?: me)?|remember this article)\s*[:\-–]?\s*", "", user, flags=re.I).strip()
+        if " — " in body:
+            title, rest = body.split(" — ", 1)
+        elif " - " in body:
+            title, rest = body.split(" - ", 1)
+        elif ":" in body:
+            title, rest = body.split(":", 1)
+        else:
+            title, rest = (body.split(".", 1) + [body])[:2]
+            if title == rest:
+                title = body[:48]
+        art = self.agi.knowledge.teach(title.strip(), rest.strip() or body)
+        self.agi.memory.add_fact("knowledge", "taught", art.title, 0.95)
+        self.agi.engine.train_on(f"{art.title}. {art.body}", steps=6, blocking=False)
+        return f"Learned **{art.title}**. I will retrieve it like any other article."
+
+    def _compose_forget(self, user: str) -> str:
+        m = re.search(r"forget (?:everything about|that|fact)?\s*(.+)$", user, re.I)
+        q = (m.group(1) if m else user).strip()
+        n = self.agi.memory.forget_facts(q)
+        return f"Forgot {n} fact(s) matching `{q}`." if n else f"Nothing matched `{q}`."
+
+    def _compose_search(self, user, memories, facts, articles) -> str:
+        q = re.sub(r"^(search(?: memory)?|find in memory|look up)\s*(for)?\s*", "", user, flags=re.I).strip()
+        needle = q or user
+        articles = self.agi.knowledge.search(needle, k=3)
+        facts = self.agi.memory.facts_about(needle, k=6)
+        memories = self.agi.memory.search(needle, k=5)
+        lines = [f"Search `{needle}`:"]
+        for a in articles[:3]:
+            lines.append(f"- knowledge: {a.title} — {a.body[:160]}")
+        for f in facts[:5]:
+            lines.append(f"- fact: {f.subject} {f.predicate} {f.obj}")
+        for m in memories[:5]:
+            lines.append(f"- episode ({m.score:.2f}): {m.content[:160]}")
+        if len(lines) == 1:
+            lines.append("- nothing yet.")
+        return "\n".join(lines)
+
+    def _compose_summarize(self) -> str:
+        dlg = self.agi.memory.recent_dialogue(k=16)
+        if not dlg:
+            return "We have not said enough to summarize."
+        users = [d["content"] for d in dlg if d["role"] == "user"]
+        facts = self.agi.memory.all_facts(k=8)
+        bits = []
+        if users:
+            bits.append("You asked about: " + "; ".join(u[:80] for u in users[-5:]))
+        if facts:
+            bits.append("I stored: " + "; ".join(f"{f.predicate}={f.obj}" for f in facts[:6]))
+        bits.append(f"{len(dlg)} turns in the recent window, {self.agi.identity.data.get('turns', 0)} lifetime.")
+        return "\n".join(bits)
+
+    def _compose_hash(self, user: str) -> str:
+        m = re.search(r"(?:sha-?256|hash of)\s+(.+)$", user, re.I)
+        payload = (m.group(1) if m else user).strip().strip("\"'")
+        digest = hashlib.sha256(payload.encode("utf-8", errors="replace")).hexdigest()
+        return f"SHA-256(`{payload[:80]}`) = `{digest}`"
 
     def _compose_code(self, user: str) -> str:
         m = re.search(r"(?:write|create|make|show)\s+(?:a\s+)?(?:python\s+)?(?:function|script)?\s*(?:to|that)?\s*(.+)$", user, re.I)
@@ -302,18 +414,18 @@ class Cognition:
 
     def _compose_chat(self, user: str) -> str:
         agi = self.agi
-        # first-principles fallback: be honest, offer a path
         if user.endswith("?") or classify(user) == "question":
+            agi.goals.add(f"Find out: {user.strip()[:80]}", why="unanswered question")
             return (
                 f"I do not have a stored article that cleanly answers that. "
                 f"Here is how I would attack it: define terms, state what would count as an answer, "
                 f"and reason with what I do know. You asked: “{user.strip()}”. "
-                "Give me a constraint or a domain and I will go deeper — and I will remember the conclusion."
+                "Teach me with `learn this: Title — …` and I will keep the conclusion."
             )
         return (
             f"I heard you. {agi.identity.data['name']} will keep this in episodic memory "
-            f"and train on it. If you want me to persist a fact, say `remember that …`. "
-            f"If you want me to grow on purpose, say `improve yourself`."
+            f"and train on it in the background. Persist a fact with `remember that …`, "
+            f"teach an article with `learn this:`, or grow on purpose with `improve yourself`."
         )
 
     def _compose_improve(self, events: list[dict]) -> str:
@@ -369,6 +481,6 @@ def _chunk_text(text: str) -> Iterator[str]:
         yield buf
 
 
-def _reflect(intent: str, reply: str) -> str:
+def _reflect(intent: str, reply: str, ms: float) -> str:
     n = len(reply.split())
-    return f"Reply is {n} words for intent `{intent}`. Storing the turn and scheduling improvement."
+    return f"Reply is {n} words for intent `{intent}` in {ms:.0f} ms. Memory write + background train next."
