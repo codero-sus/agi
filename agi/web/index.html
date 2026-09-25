@@ -20,10 +20,12 @@
       </div>
     </div>
     <div class="vitals" id="vitals">
+      <span class="pill dim" id="conn-pill">offline</span>
       <span class="pill" id="src-pill">bootstrap</span>
       <span class="pill dim" id="turn-pill">turns 0</span>
       <span class="pill dim" id="cycle-pill">cycles 0</span>
       <span class="pill dim" id="loss-pill">loss —</span>
+      <span class="pill dim" id="lat-pill">ms —</span>
     </div>
   </header>
 
@@ -45,10 +47,15 @@
     </aside>
 
     <section class="stage">
+      <div class="toolbar">
+        <button type="button" id="clear-btn" class="ghost sm" title="Clear the stage (Ctrl+L)">clear</button>
+        <button type="button" id="export-btn" class="ghost sm" title="Download transcript">export</button>
+        <button type="button" id="stop-btn" class="ghost sm" title="Stop generation">stop</button>
+      </div>
       <div id="log" class="log">
         <div class="msg agi">
           <div class="who">cortex</div>
-          <div class="body">I am awake. I load model/model.gguf or model/model.safetensors when you give me weights; until then I think with my own neural core and I get better every turn. Ask me who I am, teach me your name, or tell me to improve myself.</div>
+          <div class="body">I am awake. Drop model/model.gguf or model.safetensors when you have weights. Until then I think with my own neural core, train in the background, and keep getting better. Teach me with “learn this:”, search memory, or tell me to improve myself.</div>
         </div>
       </div>
       <form id="composer" autocomplete="off">
@@ -56,11 +63,14 @@
           <button type="button" data-q="Who are you?">who are you</button>
           <button type="button" data-q="Remember that my name is Ada">remember me</button>
           <button type="button" data-q="What is 17 * 3?">math</button>
+          <button type="button" data-q="Convert 10 km to miles">convert</button>
+          <button type="button" data-q="What time is it?">time</button>
+          <button type="button" data-q="Learn this: KV cache — A KV cache stores past attention keys and values so generation does not recompute the prompt.">teach</button>
           <button type="button" data-q="How do you work?">architecture</button>
           <button type="button" data-q="Improve yourself">improve</button>
         </div>
         <div class="row">
-          <textarea id="input" rows="2" placeholder="Speak to CORTEX…"></textarea>
+          <textarea id="input" rows="2" placeholder="Speak to CORTEX…  Enter to send, Shift+Enter for a newline"></textarea>
           <button id="send" type="submit" title="Send">↑</button>
         </div>
       </form>
@@ -73,6 +83,7 @@
       </section>
       <section class="card">
         <h2>Memory</h2>
+        <input id="mem-q" class="find" placeholder="search memory…" />
         <div id="facts" class="facts"></div>
       </section>
       <section class="card">

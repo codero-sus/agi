@@ -10,15 +10,33 @@ let ws;
 let thinking = false;
 let currentAgi = null;
 let state = null;
+let pingTimer = null;
 
 function proto() {
   return location.protocol === "https:" ? "wss" : "ws";
 }
 
+function setConn(on) {
+  const el = $("conn-pill");
+  el.textContent = on ? "live" : "offline";
+  el.className = "pill" + (on ? " live" : " dim");
+}
+
 function connect() {
   ws = new WebSocket(`${proto()}://${location.host}/ws`);
-  ws.onopen = () => setThinking(false);
-  ws.onclose = () => setTimeout(connect, 1200);
+  ws.onopen = () => {
+    setConn(true);
+    setThinking(false);
+    if (pingTimer) clearInterval(pingTimer);
+    pingTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
+  };
+  ws.onclose = () => {
+    setConn(false);
+    if (pingTimer) clearInterval(pingTimer);
+    setTimeout(connect, 1200);
+  };
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     handle(msg);
@@ -30,6 +48,7 @@ function handle(msg) {
     if (msg.state) renderState(msg.state);
     return;
   }
+  if (msg.type === "pong") return;
   if (msg.type === "thought") {
     addThought(msg.kind, msg.text);
     setThinking(true);
@@ -40,9 +59,14 @@ function handle(msg) {
     return;
   }
   if (msg.type === "done") {
-    if (currentAgi) currentAgi.dataset.done = "1";
+    if (currentAgi) {
+      currentAgi.dataset.done = "1";
+      const body = currentAgi.querySelector(".body");
+      body.innerHTML = md(body.textContent);
+    }
     currentAgi = null;
     setThinking(false);
+    if (msg.latency_ms != null) $("lat-pill").textContent = `${Math.round(msg.latency_ms)} ms`;
     return;
   }
   if (msg.type === "improve") {
@@ -50,6 +74,10 @@ function handle(msg) {
       for (const e of msg.events) addThought("improve", `${e.kind}: ${e.text || ""}`);
     }
     return;
+  }
+  if (msg.type === "error") {
+    addThought("error", msg.text || "error");
+    setThinking(false);
   }
 }
 
@@ -61,11 +89,13 @@ function addThought(kind, text) {
   while (thoughts.children.length > 40) thoughts.removeChild(thoughts.lastChild);
 }
 
-function bubble(role, text) {
+function bubble(role, text, asHtml) {
   const el = document.createElement("div");
   el.className = `msg ${role}`;
   el.innerHTML = `<div class="who">${role === "user" ? "you" : "cortex"}</div><div class="body"></div>`;
-  el.querySelector(".body").textContent = text;
+  const body = el.querySelector(".body");
+  if (asHtml) body.innerHTML = md(text);
+  else body.textContent = text;
   log.appendChild(el);
   log.scrollTop = log.scrollHeight;
   return el;
@@ -99,6 +129,12 @@ input.addEventListener("keydown", (e) => {
     send();
   }
 });
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+    e.preventDefault();
+    clearStage();
+  }
+});
 document.querySelectorAll("#chips button").forEach((b) => {
   b.addEventListener("click", () => send(b.dataset.q));
 });
@@ -108,6 +144,41 @@ $("cycle-btn").addEventListener("click", () => {
     ws.send(JSON.stringify({ type: "improve", message: "improve" }));
   }
 });
+$("clear-btn").addEventListener("click", clearStage);
+$("stop-btn").addEventListener("click", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "stop" }));
+  setThinking(false);
+});
+$("export-btn").addEventListener("click", () => {
+  window.open("/api/export", "_blank");
+});
+
+let searchTimer = 0;
+$("mem-q").addEventListener("input", (e) => {
+  const q = e.target.value.trim();
+  clearTimeout(searchTimer);
+  if (!q) {
+    if (state) renderFacts(state.facts || []);
+    return;
+  }
+  searchTimer = setTimeout(() => {
+    fetch("/api/search?q=" + encodeURIComponent(q))
+      .then((r) => r.json())
+      .then((d) => {
+        const rows = [];
+        for (const a of d.knowledge || []) rows.push({ subject: "know", predicate: a.title, object: a.body.slice(0, 80) });
+        for (const f of d.facts || []) rows.push(f);
+        for (const ep of d.episodes || []) rows.push({ subject: ep.role, predicate: ep.score.toFixed(2), object: ep.content.slice(0, 80) });
+        renderFacts(rows);
+      })
+      .catch(() => {});
+  }, 180);
+});
+
+function clearStage() {
+  log.innerHTML = "";
+  thoughts.innerHTML = "";
+}
 
 function setThinking(v) {
   thinking = v;
@@ -119,6 +190,25 @@ function esc(s) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function md(raw) {
+  let s = esc(raw);
+  s = s.replace(/```([\s\S]*?)```/g, (_, code) => `<pre>${code}</pre>`);
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return s;
+}
+
+function renderFacts(fl) {
+  const facts = $("facts");
+  facts.innerHTML = "";
+  if (!fl.length) facts.textContent = "No semantic facts yet.";
+  for (const f of fl.slice(0, 10)) {
+    const d = document.createElement("div");
+    d.textContent = `${f.subject} ${f.predicate} ${f.object}`;
+    facts.appendChild(d);
+  }
 }
 
 function renderState(s) {
@@ -133,17 +223,21 @@ function renderState(s) {
   $("cycle-pill").textContent = `cycles ${ident.cycles ?? 0}`;
   const loss = neural.last_loss;
   $("loss-pill").textContent = loss == null ? "loss —" : `loss ${Number(loss).toFixed(3)}`;
+  if (s.latency_ms) $("lat-pill").textContent = `${Math.round(s.latency_ms)} ms`;
 
   const kv = $("identity-kv");
   kv.innerHTML = "";
+  const tr = neural.trainer || {};
   const rows = [
     ["name", ident.name],
     ["constitution", `v${ident.constitution_version}`],
     ["params", (engine.params || neural.params || "—").toLocaleString?.() || engine.params || neural.params],
     ["neural steps", neural.steps ?? 0],
+    ["trainer", tr.busy ? `busy q=${tr.queue}` : `idle q=${tr.queue ?? 0}`],
     ["episodes", s.memory?.episodes ?? 0],
     ["facts", s.memory?.facts ?? 0],
     ["lessons", s.memory?.lessons ?? 0],
+    ["taught", (s.taught || []).length],
   ];
   for (const [k, v] of rows) {
     const li = document.createElement("li");
@@ -169,15 +263,7 @@ function renderState(s) {
     goals.appendChild(d);
   }
 
-  const facts = $("facts");
-  facts.innerHTML = "";
-  const fl = s.facts || [];
-  if (!fl.length) facts.textContent = "No semantic facts yet.";
-  for (const f of fl.slice(0, 10)) {
-    const d = document.createElement("div");
-    d.textContent = `${f.subject} ${f.predicate} ${f.object}`;
-    facts.appendChild(d);
-  }
+  renderFacts(s.facts || []);
 
   const skills = $("skills");
   skills.innerHTML = "";
@@ -218,7 +304,6 @@ function drawChart(hist) {
   ctx.stroke();
 }
 
-/* living orb */
 (function orb() {
   const c = $("orb");
   const ctx = c.getContext("2d");
@@ -228,7 +313,7 @@ function drawChart(hist) {
     r: 0.35 + Math.random() * 0.6,
     s: 0.004 + Math.random() * 0.01,
   }));
-  function frame(t) {
+  function frame() {
     const w = c.width, h = c.height;
     ctx.clearRect(0, 0, w, h);
     ctx.strokeStyle = "rgba(61,255,200,0.25)";
@@ -255,4 +340,16 @@ connect();
 fetch("/api/state")
   .then((r) => r.json())
   .then(renderState)
+  .catch(() => {});
+
+fetch("/api/history?k=24")
+  .then((r) => r.json())
+  .then((d) => {
+    const msgs = d.messages || [];
+    if (msgs.length < 2) return;
+    log.innerHTML = "";
+    for (const m of msgs) {
+      bubble(m.role === "user" ? "user" : "agi", m.content, true);
+    }
+  })
   .catch(() => {});
