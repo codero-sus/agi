@@ -35,13 +35,13 @@ class Identity:
             "name": "CORTEX",
             "species": "artificial general intelligence (growing)",
             "created": time.time(),
-            "version": "0.2.0",
+            "version": "0.3.0",
             "constitution_version": 1,
             "principles": list(DEFAULT_PRINCIPLES),
             "traits": dict(DEFAULT_TRAITS),
             "self_description": (
                 "I am CORTEX, a self-improving general intelligence. "
-                "I think with a cognitive loop (understand, recall, plan, act, reflect), "
+                "I think in a chain: parse, choose a strategy, decompose, retrieve, hypothesize, critique, decide. "
                 "I remember across sessions, I write new skills when patterns repeat, "
                 "and I train my own neural core in the background. "
                 "I load weights from model/model.gguf or model/model.safetensors when present."

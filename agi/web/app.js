@@ -62,11 +62,20 @@ function handle(msg) {
     if (currentAgi) {
       currentAgi.dataset.done = "1";
       const body = currentAgi.querySelector(".body");
-      body.innerHTML = md(body.textContent);
+      let raw = body.textContent;
+      const cut = raw.indexOf("**Thinking**");
+      if (cut > 0) raw = raw.slice(0, cut).trim();
+      body.innerHTML = md(raw);
+      if (msg.chain) attachChain(currentAgi, msg.chain);
     }
     currentAgi = null;
     setThinking(false);
     if (msg.latency_ms != null) $("lat-pill").textContent = `${Math.round(msg.latency_ms)} ms`;
+    if (msg.strategy) {
+      const conf = msg.confidence != null ? Math.round(msg.confidence * 100) : "—";
+      $("chain-pill").textContent = `${msg.strategy} ${conf}%`;
+      $("chain-pill").className = "pill";
+    }
     return;
   }
   if (msg.type === "improve") {
@@ -84,9 +93,29 @@ function handle(msg) {
 function addThought(kind, text) {
   const d = document.createElement("div");
   d.className = "t";
+  d.dataset.kind = kind || "";
   d.innerHTML = `<span class="k">${esc(kind)}</span>${esc(text)}`;
   thoughts.prepend(d);
-  while (thoughts.children.length > 40) thoughts.removeChild(thoughts.lastChild);
+  while (thoughts.children.length > 48) thoughts.removeChild(thoughts.lastChild);
+}
+
+function attachChain(el, chain) {
+  const steps = chain.steps || [];
+  if (!steps.length) return;
+  const det = document.createElement("details");
+  det.className = "chain";
+  det.open = chain.system === 2;
+  const conf = Math.round((chain.confidence || 0) * 100);
+  det.innerHTML = `<summary>chain · ${esc(chain.strategy || "?")} · ${steps.length} steps · ${conf}%</summary><ol></ol>`;
+  const ol = det.querySelector("ol");
+  for (const s of steps) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="k">${esc(s.kind)}</span> ${esc(s.text)}`;
+    ol.appendChild(li);
+  }
+  const who = el.querySelector(".who");
+  if (who) who.after(det);
+  else el.prepend(det);
 }
 
 function bubble(role, text, asHtml) {

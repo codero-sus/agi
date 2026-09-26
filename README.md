@@ -40,6 +40,20 @@ Drop `model.gguf` or `model.safetensors` into `model/` and restart, or `POST /ap
 - **Think runs in a worker thread** so the WebSocket event loop stays live
 - gzip + static cache headers
 
+## Chain of thought (v0.3)
+
+Hard questions run **System 2** before speaking:
+
+1. **Parse** — restate the question and what would count as an answer
+2. **Strategy** — causal, mechanism, compare, counterfactual, first-principles, plan, retrieve
+3. **Decompose** — 2–4 subquestions
+4. **Retrieve / deduce** — knowledge, memory, tools
+5. **Hypothesize** — competing candidates, scored
+6. **Critique** — devil's advocate
+7. **Decide** — commit with a confidence
+
+The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
+
 ## Features
 
 - Teach: `learn this: Title — body` (persists under `data/knowledge.json`)

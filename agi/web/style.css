@@ -226,6 +226,36 @@ textarea:focus { border-color: var(--mint); }
   margin: 8px 0;
 }
 .msg .body strong { color: var(--mint); font-weight: 600; }
+.chain {
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(61, 255, 200, 0.04);
+}
+.chain summary {
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.chain ol { margin: 8px 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.chain .k, .thoughts .k {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint);
+  margin-right: 6px;
+}
+.thoughts .t[data-kind="critique"] .k { color: var(--danger); }
+.thoughts .t[data-kind="hypothesize"] .k { color: var(--amber); }
+.thoughts .t[data-kind="decide"] .k { color: var(--blue); }
+.thoughts .t[data-kind="parse"] .k,
+.thoughts .t[data-kind="strategy"] .k,
+.thoughts .t[data-kind="decompose"] .k { color: var(--amber); }
 
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr; height: auto; }
