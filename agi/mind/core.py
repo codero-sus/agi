@@ -27,6 +27,7 @@ class AGI:
         self.cognition = Cognition(self)
         self.lock = threading.Lock()
         self.last_latency_ms = 0.0
+        self.last_chain: dict | None = None
         self.engine.trainer.dream_source = self._dream_text
 
     def _dream_text(self) -> str:
@@ -84,6 +85,7 @@ class AGI:
             "thoughts": thoughts,
             "improve": improve,
             "latency_ms": latency,
+            "chain": self.last_chain,
         }
 
     def quick_answer(self, user_text: str) -> str:
@@ -124,6 +126,7 @@ class AGI:
             },
             "taught": [{"title": a.title, "tags": list(a.tags)} for a in self.knowledge.taught[-12:]],
             "latency_ms": self.last_latency_ms,
+            "chain": self.last_chain,
         }
 
 

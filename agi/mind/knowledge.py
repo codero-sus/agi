@@ -114,6 +114,14 @@ ARTICLES: list[Article] = [
         "liquid water, and a biosphere. It formed about 4.54 billion years ago.",
     ),
     Article(
+        "Chain of thought",
+        ("thinking", "reason", "chain", "system 2", "deliberate", "hypothesis"),
+        "Super-general intelligence is not a single lookup. It is a chain: restate the question, "
+        "choose a strategy (causal, compare, first principles, plan), split into subquestions, "
+        "retrieve evidence, hold competing hypotheses, attack the winner, then speak. "
+        "CORTEX runs this loop as System 2 and streams every step. Fast facts stay System 1.",
+    ),
+    Article(
         "Time",
         ("time", "clock", "date"),
         "Time is the dimension in which events are ordered. Computers count it from the Unix epoch. "

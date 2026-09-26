@@ -8,6 +8,7 @@ import time
 from typing import TYPE_CHECKING, Iterator
 
 from agi.mind.knowledge import try_convert, try_math
+from agi.mind.reason import FAST_INTENTS, Reasoner
 
 if TYPE_CHECKING:
     from agi.mind.core import AGI
@@ -63,7 +64,7 @@ def classify(text: str) -> str:
     return "chat"
 
 
-def build_lm_prompt(agi: "AGI", user: str, thoughts: list[str]) -> str:
+def build_lm_prompt(agi: "AGI", user: str, thoughts: list[str], chain_trace: str = "") -> str:
     ident = agi.identity.system_preamble()
     lessons = agi.memory.lessons(k=8)
     facts = agi.memory.all_facts(k=12)
@@ -79,6 +80,7 @@ def build_lm_prompt(agi: "AGI", user: str, thoughts: list[str]) -> str:
         + ("\n".join(f"- {e.role}: {e.content[:180]}" for e in retrieved) or "- none"),
         "Skills: " + skill_names,
         "Inner thoughts:\n" + "\n".join(f"- {t}" for t in thoughts[-8:]),
+        ("Chain of thought:\n" + chain_trace) if chain_trace else "Chain of thought: (none)",
         "Recent dialogue:",
     ]
     for d in dialogue:
@@ -91,12 +93,14 @@ def build_lm_prompt(agi: "AGI", user: str, thoughts: list[str]) -> str:
 class Cognition:
     def __init__(self, agi: "AGI"):
         self.agi = agi
+        self.reasoner = Reasoner(agi)
 
     def think(self, user: str) -> Iterator[dict]:
         agi = self.agi
         t0 = time.perf_counter()
         intent = classify(user)
         thoughts: list[str] = []
+        chain_obj = None
 
         def thought(kind: str, text: str) -> dict:
             thoughts.append(text)
@@ -141,63 +145,76 @@ class Cognition:
         if conv_v:
             yield thought("act", conv_v)
 
+        act_note = None
         if intent == "improve":
             yield thought("plan", "Running critic + self-eval; neural steps go to the background trainer.")
             ev = agi.improver.cycle(reason="user")
             yield thought("act", "Cycle events: " + ", ".join(e.get("kind", "?") for e in ev))
             reply = self._compose_improve(ev)
+            act_note = "improvement cycle"
         elif intent == "teach":
             reply = self._compose_teach(user)
+            act_note = "wrote taught article"
             yield thought("act", "Wrote a taught article into long-term knowledge.")
         elif intent == "forget":
             reply = self._compose_forget(user)
+            act_note = "forgot matching facts"
         elif intent == "search":
             reply = self._compose_search(user, memories, facts, articles)
+            act_note = "memory + knowledge search"
         elif intent == "summarize":
             reply = self._compose_summarize()
+            act_note = "summarized dialogue"
         elif intent == "time":
             reply = agi.tools.call("now")
+            act_note = reply
             yield thought("act", reply)
         elif intent == "convert" and conv_v:
             reply = conv_v
+            act_note = conv_v
         elif intent == "hash":
             reply = self._compose_hash(user)
+            act_note = "sha-256"
         elif intent == "code" and re.search(r"\b(run|execute|eval)\b", user.lower()):
             code = _extract_code(user)
             yield thought("act", "Running sandboxed Python.")
             reply = "Result:\n" + agi.tools.call("python", code=code)
+            act_note = "sandbox python"
+        elif intent == "math" and math_v is not None:
+            reply = f"{math_v}\n\nI evaluated that directly rather than guessing."
+            act_note = f"evaluated → {math_v}"
         else:
-            yield thought("plan", "Compose a grounded reply.")
-            reply = self._compose(user, intent, memories, facts, articles, math_v, tool_out)
+            yield thought("plan", "System 2: parse → strategy → decompose → retrieve → hypothesize → critique → decide.")
+            draft = self._compose(user, intent, memories, facts, articles, math_v, tool_out)
+            chain_obj = self.reasoner.deliberate(
+                user, intent, memories, facts, articles, math_v, conv_v, tool_out, draft
+            )
+            for step in chain_obj.steps:
+                yield thought(step.kind, step.text)
+            reply = chain_obj.answer
 
             use_lm = agi.engine.has_external_lm() and intent not in _HIGH_CONFIDENCE
             if use_lm:
-                yield thought("act", f"Sampling from {agi.engine.info.backend} (KV-cached).")
-                prompt = build_lm_prompt(agi, user, thoughts)
+                yield thought("act", f"Sampling from {agi.engine.info.backend} conditioned on the chain.")
+                prompt = build_lm_prompt(agi, user, thoughts, chain_obj.format_trace())
                 try:
                     sampled = agi.engine.generate(prompt, max_new=180)
                     sampled = _clean_sample(sampled)
                     if sampled and len(sampled) > 12:
+                        chain_obj.answer = sampled
                         reply = sampled
                 except Exception as e:
-                    yield thought("act", f"External LM failed ({e}); using composed reply.")
-            elif (
-                agi.engine.cortex.steps > 120
-                and intent in ("chat", "question")
-                and not articles
-            ):
-                yield thought("act", "Neural core drafting a short continuation.")
-                prompt = build_lm_prompt(agi, user, thoughts)[-400:]
-                try:
-                    sampled = agi.engine.generate(prompt, max_new=48)
-                    sampled = _clean_sample(sampled)
-                    if sampled and len(sampled.split()) > 4 and not _degenerate(sampled):
-                        reply = reply + "\n\n" + sampled
-                except Exception:
-                    pass
+                    yield thought("act", f"External LM failed ({e}); using deliberated reply.")
+            reply = self.reasoner.render_answer(chain_obj)
 
+        if chain_obj is None:
+            chain_obj = self.reasoner.wrap_fast(user, intent, reply, act_note)
+            for step in chain_obj.steps:
+                yield thought(step.kind, step.text)
+
+        agi.last_chain = chain_obj.as_dict()
         ms = (time.perf_counter() - t0) * 1000
-        yield thought("reflect", _reflect(intent, reply, ms))
+        yield thought("reflect", _reflect(intent, reply, ms, chain_obj.strategy, chain_obj.confidence))
 
         for chunk in _chunk_text(reply):
             yield {"type": "token", "text": chunk}
@@ -208,6 +225,9 @@ class Cognition:
             "intent": intent,
             "thoughts": thoughts,
             "latency_ms": round(ms, 1),
+            "chain": chain_obj.as_dict(),
+            "strategy": chain_obj.strategy,
+            "confidence": chain_obj.confidence,
         }
 
     def quick_answer(self, user: str) -> str:
@@ -295,7 +315,8 @@ class Cognition:
         return (
             "I run as a local process with a custom inference server — not a hosted API.\n\n"
             "1. **Load** `model/model.gguf` or `model/model.safetensors` if present.\n"
-            "2. **Think** with a cognitive loop: understand, recall, plan, act, reflect.\n"
+            "2. **Think** with System 2: parse, choose a strategy, decompose, retrieve, "
+            "hold competing hypotheses, critique, decide.\n"
             "3. **Remember** with a numpy vector index over SQLite episodes.\n"
             "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
             "5. **Teach** me with `learn this: Title — body` and I persist an article.\n\n"
@@ -481,6 +502,9 @@ def _chunk_text(text: str) -> Iterator[str]:
         yield buf
 
 
-def _reflect(intent: str, reply: str, ms: float) -> str:
+def _reflect(intent: str, reply: str, ms: float, strategy: str = "direct", confidence: float = 0.5) -> str:
     n = len(reply.split())
-    return f"Reply is {n} words for intent `{intent}` in {ms:.0f} ms. Memory write + background train next."
+    return (
+        f"Reply is {n} words for intent `{intent}` via `{strategy}` "
+        f"(conf {confidence:.0%}) in {ms:.0f} ms. Store the chain and train on it."
+    )
