@@ -11,93 +11,140 @@
 </head>
 <body>
   <div id="mesh"></div>
-  <header class="top">
-    <div class="brand">
-      <canvas id="orb" width="44" height="44" aria-hidden="true"></canvas>
+  <div id="dropmask">drop files to teach CORTEX</div>
+
+  <aside class="chats" id="chats">
+    <div class="chats-brand">
+      <canvas id="orb" width="36" height="36" aria-hidden="true"></canvas>
       <div>
         <div class="logo">CORTEX</div>
-        <div class="tag">self-improving general intelligence</div>
+        <div class="tag">beats a chatbot UI</div>
       </div>
     </div>
-    <div class="vitals" id="vitals">
-      <span class="pill dim" id="conn-pill">offline</span>
-      <span class="pill" id="src-pill">bootstrap</span>
-      <span class="pill dim" id="turn-pill">turns 0</span>
-      <span class="pill dim" id="cycle-pill">cycles 0</span>
-      <span class="pill dim" id="loss-pill">loss —</span>
-      <span class="pill dim" id="lat-pill">ms —</span>
-      <span class="pill dim" id="chain-pill">chain —</span>
+    <button type="button" id="new-chat" class="ghost">+ new thread</button>
+    <input id="chat-q" class="find" placeholder="search threads…" />
+    <div id="chat-list" class="chat-list"></div>
+  </aside>
+
+  <div class="workspace">
+    <header class="top">
+      <div class="brand-inline">
+        <button type="button" id="toggle-chats" class="ghost sm" title="Threads">☰</button>
+        <span id="thread-title">new thread</span>
+      </div>
+      <div class="vitals" id="vitals">
+        <span class="pill dim" id="conn-pill">offline</span>
+        <span class="pill" id="src-pill">bootstrap</span>
+        <span class="pill dim" id="turn-pill">turns 0</span>
+        <span class="pill dim" id="cycle-pill">cycles 0</span>
+        <span class="pill dim" id="loss-pill">loss —</span>
+        <span class="pill dim" id="lat-pill">ms —</span>
+        <span class="pill dim" id="chain-pill">chain —</span>
+      </div>
+      <div class="top-actions">
+        <button type="button" id="focus-btn" class="ghost sm" title="Focus mode (Ctrl+.)">focus</button>
+        <button type="button" id="settings-btn" class="ghost sm" title="Settings">set</button>
+        <button type="button" id="palette-btn" class="ghost sm" title="Command palette (Ctrl+K)">⌘K</button>
+      </div>
+    </header>
+
+    <div class="desk">
+      <section class="stage">
+        <div class="toolbar">
+          <button type="button" id="clear-btn" class="ghost sm" title="Clear the stage (Ctrl+L)">clear</button>
+          <button type="button" id="export-btn" class="ghost sm" title="Export JSON">export</button>
+          <button type="button" id="stop-btn" class="ghost sm" title="Stop">stop</button>
+          <button type="button" id="regen-btn" class="ghost sm" title="Regenerate last">regen</button>
+        </div>
+        <div id="log" class="log">
+          <div class="msg agi">
+            <div class="who">cortex</div>
+            <div class="body">I am not Open WebUI wrapping someone else's model. I am a local AGI with threads, a file vault, artifacts, voice, slash commands, and a chain of thought. Drop a file, press ⌘K, or just speak.</div>
+          </div>
+        </div>
+        <form id="composer" autocomplete="off">
+          <div class="chips" id="chips"></div>
+          <div id="attach-strip" class="attach-strip"></div>
+          <div class="row">
+            <button type="button" id="attach-btn" class="icon-btn" title="Attach file">＋</button>
+            <button type="button" id="mic-btn" class="icon-btn" title="Voice">mic</button>
+            <textarea id="input" rows="2" placeholder="Message CORTEX…  / for commands, ⌘K for palette"></textarea>
+            <div class="send-col">
+              <span id="chars" class="chars">0</span>
+              <button id="send" type="submit" title="Send">↑</button>
+            </div>
+          </div>
+          <input id="file" type="file" multiple hidden accept=".txt,.md,.py,.json,.csv,.html,.css,.js,.ts,.yml,.yaml,.toml,.rst,.ini" />
+        </form>
+      </section>
+
+      <aside class="context" id="context">
+        <div class="tabs" id="tabs">
+          <button type="button" data-tab="think" class="on">think</button>
+          <button type="button" data-tab="artifact">artifact</button>
+          <button type="button" data-tab="memory">memory</button>
+          <button type="button" data-tab="vault">vault</button>
+          <button type="button" data-tab="mind">mind</button>
+        </div>
+        <div class="tab-body on" id="tab-think">
+          <h2>Chain of thought</h2>
+          <div id="thoughts" class="thoughts"></div>
+        </div>
+        <div class="tab-body" id="tab-artifact">
+          <h2>Artifact</h2>
+          <div class="art-bar">
+            <span id="art-label">none yet</span>
+            <button type="button" id="art-copy" class="ghost sm">copy</button>
+            <button type="button" id="art-run" class="ghost sm">preview</button>
+          </div>
+          <pre id="art-code" class="art-code"></pre>
+          <iframe id="art-frame" class="art-frame" sandbox="allow-scripts" hidden></iframe>
+        </div>
+        <div class="tab-body" id="tab-memory">
+          <h2>Memory</h2>
+          <input id="mem-q" class="find" placeholder="search memory…" />
+          <div id="facts" class="facts"></div>
+        </div>
+        <div class="tab-body" id="tab-vault">
+          <h2>Vault</h2>
+          <p class="lede">Drop files onto the page. Text becomes knowledge.</p>
+          <div id="vault-list" class="facts"></div>
+        </div>
+        <div class="tab-body" id="tab-mind">
+          <h2>Identity</h2>
+          <p class="lede" id="self-desc">Loading mind…</p>
+          <ul class="kv" id="identity-kv"></ul>
+          <h2>Goals</h2>
+          <div id="goals" class="goals"></div>
+          <h2>Constitution</h2>
+          <ol id="principles" class="principles"></ol>
+          <h2>Skills</h2>
+          <div id="skills" class="skills"></div>
+          <canvas id="chart" width="360" height="90"></canvas>
+          <button id="cycle-btn" type="button" class="ghost">Run improvement cycle</button>
+        </div>
+      </aside>
     </div>
-  </header>
+  </div>
 
-  <main class="layout">
-    <aside class="rail left">
-      <section class="card">
-        <h2>Identity</h2>
-        <p class="lede" id="self-desc">Loading mind…</p>
-        <ul class="kv" id="identity-kv"></ul>
-      </section>
-      <section class="card">
-        <h2>Goals</h2>
-        <div id="goals" class="goals"></div>
-      </section>
-      <section class="card">
-        <h2>Constitution</h2>
-        <ol id="principles" class="principles"></ol>
-      </section>
-    </aside>
+  <div id="palette" class="modal" hidden>
+    <div class="modal-card">
+      <input id="palette-q" placeholder="Search commands, prompts, threads…" />
+      <div id="palette-list"></div>
+    </div>
+  </div>
 
-    <section class="stage">
-      <div class="toolbar">
-        <button type="button" id="clear-btn" class="ghost sm" title="Clear the stage (Ctrl+L)">clear</button>
-        <button type="button" id="export-btn" class="ghost sm" title="Download transcript">export</button>
-        <button type="button" id="stop-btn" class="ghost sm" title="Stop generation">stop</button>
-      </div>
-      <div id="log" class="log">
-        <div class="msg agi">
-          <div class="who">cortex</div>
-          <div class="body">I am awake. Drop model/model.gguf or model.safetensors when you have weights. Until then I think with my own neural core, train in the background, and keep getting better. Teach me with “learn this:”, search memory, or tell me to improve myself.</div>
-        </div>
-      </div>
-      <form id="composer" autocomplete="off">
-        <div class="chips" id="chips">
-          <button type="button" data-q="Who are you?">who are you</button>
-          <button type="button" data-q="Remember that my name is Ada">remember me</button>
-          <button type="button" data-q="What is 17 * 3?">math</button>
-          <button type="button" data-q="Convert 10 km to miles">convert</button>
-          <button type="button" data-q="What time is it?">time</button>
-          <button type="button" data-q="Learn this: KV cache — A KV cache stores past attention keys and values so generation does not recompute the prompt.">teach</button>
-          <button type="button" data-q="How do you work?">architecture</button>
-          <button type="button" data-q="Why does photosynthesis produce oxygen?">why</button>
-          <button type="button" data-q="Compare relativity and quantum theory">compare</button>
-          <button type="button" data-q="What if CORTEX had no memory?">what if</button>
-          <button type="button" data-q="Improve yourself">improve</button>
-        </div>
-        <div class="row">
-          <textarea id="input" rows="2" placeholder="Speak to CORTEX…  Enter to send, Shift+Enter for a newline"></textarea>
-          <button id="send" type="submit" title="Send">↑</button>
-        </div>
-      </form>
-    </section>
-
-    <aside class="rail right">
-      <section class="card">
-        <h2>Chain of thought</h2>
-        <div id="thoughts" class="thoughts"></div>
-      </section>
-      <section class="card">
-        <h2>Memory</h2>
-        <input id="mem-q" class="find" placeholder="search memory…" />
-        <div id="facts" class="facts"></div>
-      </section>
-      <section class="card">
-        <h2>Skills &amp; growth</h2>
-        <div id="skills" class="skills"></div>
-        <canvas id="chart" width="360" height="90"></canvas>
-        <button id="cycle-btn" type="button" class="ghost">Run improvement cycle</button>
-      </section>
-    </aside>
-  </main>
+  <div id="settings" class="modal" hidden>
+    <div class="modal-card">
+      <h2>Settings</h2>
+      <label class="tog"><input type="checkbox" id="opt-speak" /> speak replies</label>
+      <label class="tog"><input type="checkbox" id="opt-enter" checked /> enter to send</label>
+      <label class="tog"><input type="checkbox" id="opt-chain" checked /> expand chain of thought</label>
+      <label class="tog"><input type="checkbox" id="opt-focus" /> focus mode</label>
+      <p class="lede">CORTEX keeps long-term memory across threads. Threads are the conversation; the mind is shared.</p>
+      <button type="button" id="reload-model" class="ghost">reload model/</button>
+    </div>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>
