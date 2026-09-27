@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = Path(os.environ.get("AGI_MODEL_DIR", ROOT / "model"))
 DATA_DIR = Path(os.environ.get("AGI_DATA_DIR", ROOT / "data"))
 SKILLS_DIR = Path(os.environ.get("AGI_SKILLS_DIR", ROOT / "skills"))
+VAULT_DIR = Path(os.environ.get("AGI_VAULT_DIR", DATA_DIR / "vault"))
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
 GGUF_NAME = "model.gguf"
@@ -53,4 +54,5 @@ def ensure_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    VAULT_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "events").mkdir(parents=True, exist_ok=True)

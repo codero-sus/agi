@@ -16,10 +16,10 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -28,13 +28,14 @@ from starlette.requests import Request
 from agi import __version__
 from agi.config import HOST, PORT, WEB_DIR, ensure_dirs
 from agi.mind.core import get_agi
+from agi.mind.workspace import PROMPTS, get_workspace
 
 
 class CacheStaticMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         if request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "public, max-age=120"
+            response.headers["Cache-Control"] = "public, max-age=5"
         return response
 
 
@@ -78,6 +79,11 @@ class ChatIn(BaseModel):
 class TeachIn(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     body: str = Field(..., min_length=1, max_length=4000)
+
+
+class SessionIn(BaseModel):
+    title: str | None = None
+    pinned: bool | None = None
 
 
 class CompletionsIn(BaseModel):
@@ -193,6 +199,67 @@ def api_reload():
     return info.as_dict()
 
 
+@app.get("/api/prompts")
+def api_prompts():
+    return {"prompts": PROMPTS}
+
+
+@app.get("/api/sessions")
+def api_sessions():
+    return {"sessions": get_workspace().list()}
+
+
+@app.post("/api/sessions")
+def api_session_new(body: SessionIn | None = None):
+    title = (body.title if body else None) or "new thread"
+    return get_workspace().create(title)
+
+
+@app.get("/api/sessions/{sid}")
+def api_session_get(sid: str):
+    s = get_workspace().get(sid)
+    if not s:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return s
+
+
+@app.patch("/api/sessions/{sid}")
+def api_session_patch(sid: str, body: SessionIn):
+    s = get_workspace().patch(sid, title=body.title, pinned=body.pinned)
+    if not s:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return {"ok": True, "id": sid, "title": s.get("title"), "pinned": s.get("pinned")}
+
+
+@app.delete("/api/sessions/{sid}")
+def api_session_del(sid: str):
+    ok = get_workspace().delete(sid)
+    return {"ok": ok}
+
+
+@app.get("/api/vault")
+def api_vault():
+    return {"files": get_workspace().vault()}
+
+
+@app.get("/api/vault/{name}")
+def api_vault_read(name: str):
+    text = get_workspace().read_vault(name)
+    if text is None:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return {"name": name, "text": text}
+
+
+@app.post("/api/ingest")
+async def api_ingest(file: UploadFile = File(...)):
+    raw = await file.read()
+    result = get_workspace().ingest(file.filename or "upload.txt", raw)
+    if result.get("ok"):
+        stem = (file.filename or "upload").rsplit("/", 1)[-1].rsplit(".", 1)[0][:80]
+        get_agi().teach(stem or "upload", (result.get("excerpt") or "")[:4000])
+    return result
+
+
 @app.websocket("/ws")
 async def ws_chat(ws: WebSocket):
     await ws.accept()
@@ -207,6 +274,7 @@ async def ws_chat(ws: WebSocket):
                 data = {"type": "chat", "message": raw}
             kind = data.get("type") or "chat"
             msg = (data.get("message") or data.get("text") or "").strip()
+            sid = data.get("session_id")
             if kind == "ping":
                 await ws.send_json({"type": "pong", "t": time.time()})
                 continue
@@ -224,9 +292,20 @@ async def ws_chat(ws: WebSocket):
                 await ws.send_json({"type": "improve", "events": events})
                 await ws.send_json({"type": "state", "state": agi.state()})
                 continue
+            if sid:
+                get_workspace().append(sid, "user", msg)
+            reply = ""
+            chain = None
             async for event in iter_think(msg):
+                if event.get("type") == "done":
+                    reply = event.get("message") or ""
+                    chain = event.get("chain")
                 await ws.send_json(event)
+            if sid and reply:
+                get_workspace().append(sid, "agi", reply, meta={"chain": chain} if chain else None)
             await ws.send_json({"type": "state", "state": agi.state()})
+            if sid:
+                await ws.send_json({"type": "session", "session": get_workspace().get(sid)})
     except WebSocketDisconnect:
         return
 

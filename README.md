@@ -54,6 +54,18 @@ Hard questions run **System 2** before speaking:
 
 The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
 
+## Workspace (v0.4) — built to beat Open WebUI
+
+Open WebUI is a wrapper around someone else's model. CORTEX is the model, the mind, and the UI:
+
+- **Threads** with search, pin-worthy titles, JSON export
+- **File vault** — drop `.md/.py/.json` onto the page; they become knowledge
+- **Artifacts** — code blocks hop into a side panel with copy + HTML preview
+- **Voice** — mic in, spoken replies out (browser APIs)
+- **Slash commands** and a **⌘K command palette**
+- **Focus mode** (Ctrl+.) — hide chrome, keep the mind
+- Shared long-term memory across threads (WebUI chats are amnesiac silos)
+
 ## Features
 
 - Teach: `learn this: Title — body` (persists under `data/knowledge.json`)
