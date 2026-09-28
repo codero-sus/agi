@@ -324,11 +324,31 @@ textarea:focus { border-color: var(--mint); }
   border: 0;
   border-bottom: 2px solid transparent;
   color: var(--muted);
-  padding: 10px 4px;
-  font: 10px "IBM Plex Mono", monospace;
-  letter-spacing: 0.1em;
+  padding: 10px 2px;
+  font: 9px "IBM Plex Mono", monospace;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
+}
+.tasks { font-size: 13px; overflow: auto; }
+.task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line2);
+  color: var(--muted);
+}
+.task input { accent-color: var(--mint); }
+.task.done span { text-decoration: line-through; opacity: 0.55; }
+.task .x {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
 }
 .tabs button.on { color: var(--mint); border-bottom-color: var(--mint); }
 .tab-body { display: none; padding: 12px; overflow: auto; flex: 1; }

@@ -81,6 +81,10 @@ class ToolRegistry:
         self.register("convert", "Convert units (km, mi, kg, lb, C/F, bytes).", self._convert)
         self.register("hash", "SHA-256 of a string.", self._hash)
         self.register("uuid", "Generate a random UUID4.", self._uuid)
+        self.register("wiki", "Search Wikipedia and return a summary.", self._wiki)
+        self.register("fetch", "Read public http(s) text. Blocks private/local hosts.", self._fetch)
+        self.register("note", "Write a document the mind keeps.", self._note)
+        self.register("task", "Add a task to the desk.", self._task)
 
     def register(self, name: str, description: str, fn: Callable[..., str]) -> None:
         self._tools[name] = fn
@@ -120,3 +124,36 @@ class ToolRegistry:
 
     def _uuid(self, **_kwargs) -> str:
         return str(uuid.uuid4())
+
+    def _wiki(self, query: str = "") -> str:
+        from agi.mind.net import wiki_search, wiki_summary
+
+        hits = wiki_search(query, k=3)
+        if not hits:
+            return f"no wikipedia hits for {query!r}"
+        parts = []
+        for h in hits[:2]:
+            s = wiki_summary(h["title"])
+            if s:
+                parts.append(f"{s['title']}: {s['extract'][:800]}\n{s['url']}")
+            else:
+                parts.append(f"{h['title']}: {h.get('description') or ''}")
+        return "\n\n".join(parts) or f"no wikipedia summary for {query!r}"
+
+    def _fetch(self, url: str = "") -> str:
+        from agi.mind.net import fetch_text
+
+        text = fetch_text(url)
+        return text if text else f"could not fetch {url}"
+
+    def _note(self, title: str = "", body: str = "") -> str:
+        from agi.mind.desk import get_desk
+
+        doc = get_desk().write_doc(title or "note", body or "", kind="note")
+        return f"wrote document {doc['id']}: {doc['title']}"
+
+    def _task(self, title: str = "") -> str:
+        from agi.mind.desk import get_desk
+
+        t = get_desk().add_task(title, source="tool")
+        return f"task {t['id']}: {t['title']}"

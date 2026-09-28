@@ -18,7 +18,7 @@
       <canvas id="orb" width="36" height="36" aria-hidden="true"></canvas>
       <div>
         <div class="logo">CORTEX</div>
-        <div class="tag">beats a chatbot UI</div>
+        <div class="tag">one mind, not a suite</div>
       </div>
     </div>
     <button type="button" id="new-chat" class="ghost">+ new thread</button>
@@ -59,7 +59,7 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex</div>
-            <div class="body">I am not Open WebUI wrapping someone else's model. I am a local AGI with threads, a file vault, artifacts, voice, slash commands, and a chain of thought. Drop a file, press ⌘K, or just speak.</div>
+            <div class="body">I am not Odysseus wrapping Ollama. I am the model, the chain of thought, the desk. Say <code>research this:</code>, drop a file, jot a <code>note:</code>, or press ⌘K.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
@@ -81,8 +81,10 @@
       <aside class="context" id="context">
         <div class="tabs" id="tabs">
           <button type="button" data-tab="think" class="on">think</button>
-          <button type="button" data-tab="artifact">artifact</button>
-          <button type="button" data-tab="memory">memory</button>
+          <button type="button" data-tab="artifact">art</button>
+          <button type="button" data-tab="docs">docs</button>
+          <button type="button" data-tab="tasks">todo</button>
+          <button type="button" data-tab="memory">mem</button>
           <button type="button" data-tab="vault">vault</button>
           <button type="button" data-tab="mind">mind</button>
         </div>
@@ -99,6 +101,24 @@
           </div>
           <pre id="art-code" class="art-code"></pre>
           <iframe id="art-frame" class="art-frame" sandbox="allow-scripts" hidden></iframe>
+        </div>
+        <div class="tab-body" id="tab-docs">
+          <h2>Documents</h2>
+          <p class="lede">Research reports and notes the mind keeps. Odysseus has a separate editor. These train me.</p>
+          <div class="art-bar">
+            <input id="doc-title" class="find" placeholder="new note title…" />
+            <button type="button" id="doc-new" class="ghost sm">save</button>
+          </div>
+          <div id="doc-list" class="facts"></div>
+        </div>
+        <div class="tab-body" id="tab-tasks">
+          <h2>Tasks</h2>
+          <p class="lede">Next actions from you and from research. Not a calendar clone — a working memory.</p>
+          <div class="art-bar">
+            <input id="task-title" class="find" placeholder="add a task…" />
+            <button type="button" id="task-new" class="ghost sm">add</button>
+          </div>
+          <div id="task-list" class="tasks"></div>
         </div>
         <div class="tab-body" id="tab-memory">
           <h2>Memory</h2>

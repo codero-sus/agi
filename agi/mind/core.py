@@ -10,6 +10,7 @@ from agi.inference.loader import ModelEngine, load_engine
 from agi.mind.cognition import Cognition
 from agi.mind.goals import Goals
 from agi.mind.identity import Identity
+from agi.mind.desk import get_desk
 from agi.mind.knowledge import Knowledge
 from agi.mind.memory import Memory
 from agi.tools.builtin import ToolRegistry
@@ -127,6 +128,7 @@ class AGI:
             "taught": [{"title": a.title, "tags": list(a.tags)} for a in self.knowledge.taught[-12:]],
             "latency_ms": self.last_latency_ms,
             "chain": self.last_chain,
+            "desk": get_desk().counts(),
         }
 
 

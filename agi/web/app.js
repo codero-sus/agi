@@ -87,6 +87,16 @@ function handle(msg) {
       decorateCode(body);
       if (msg.chain) attachChain(currentAgi, msg.chain);
       harvestArtifact(raw);
+      if (msg.intent === "research" || msg.doc_id) {
+        artifact = { lang: "md", code: raw };
+        $("art-label").textContent = msg.strategy === "research" ? "research report" : "document";
+        $("art-code").textContent = raw;
+        showTab("docs");
+        loadDocs();
+        loadTasks();
+      }
+      if (msg.intent === "note") loadDocs();
+      if (msg.intent === "task") loadTasks();
       if (settings.speak) speak(raw);
     }
     currentAgi = null;
@@ -207,7 +217,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /clear /export /improve /search q /teach title — body /stop /focus /think", true);
+    bubble("agi", "Commands: /new /clear /export /improve /research q /note t /todo t /search q /teach title — body /stop /focus /think", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -233,6 +243,18 @@ function handleSlash(t) {
   }
   if (cmd === "teach" && arg) {
     send(`learn this: ${arg}`);
+    return true;
+  }
+  if (cmd === "research" && arg) {
+    send("Research this: " + arg);
+    return true;
+  }
+  if (cmd === "note" && arg) {
+    send("Note: " + arg);
+    return true;
+  }
+  if ((cmd === "todo" || cmd === "task") && arg) {
+    send("Todo: " + arg);
     return true;
   }
   if (cmd === "think" && arg) {
@@ -336,13 +358,12 @@ $("mic-btn").onclick = () => {
 ["opt-speak", "opt-enter", "opt-chain", "opt-focus"].forEach(() => {});
 saveSettings();
 
+function showTab(name) {
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
+  document.querySelectorAll(".tab-body").forEach((x) => x.classList.toggle("on", x.id === "tab-" + name));
+}
 document.querySelectorAll("#tabs button").forEach((b) => {
-  b.onclick = () => {
-    document.querySelectorAll("#tabs button").forEach((x) => x.classList.remove("on"));
-    document.querySelectorAll(".tab-body").forEach((x) => x.classList.remove("on"));
-    b.classList.add("on");
-    $("tab-" + b.dataset.tab).classList.add("on");
-  };
+  b.onclick = () => showTab(b.dataset.tab);
 });
 
 $("art-copy").onclick = () => navigator.clipboard.writeText(artifact.code || "");
@@ -398,6 +419,8 @@ function md(raw) {
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+  s = s.replace(/^## (.+)$/gm, "<h3>$1</h3>");
+  s = s.replace(/^# (.+)$/gm, "<h3>$1</h3>");
   s = s.replace(/^\- (.+)$/gm, "<li>$1</li>");
   s = s.replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>");
   s = s.replace(/\n\n/g, "</p><p>");
@@ -633,6 +656,55 @@ async function ingestFiles(fileList) {
   loadVault();
 }
 
+async function loadDocs() {
+  const d = await fetch("/api/docs").then((r) => r.json()).catch(() => ({ docs: [] }));
+  const box = $("doc-list");
+  if (!box) return;
+  box.innerHTML = "";
+  for (const doc of d.docs || []) {
+    const el = document.createElement("div");
+    el.textContent = `${doc.kind} · ${doc.title} · ${doc.chars}c`;
+    el.onclick = async () => {
+      const full = await fetch("/api/docs/" + doc.id).then((r) => r.json());
+      artifact = { lang: "md", code: full.body || "" };
+      $("art-label").textContent = full.title;
+      $("art-code").textContent = artifact.code;
+      showTab("artifact");
+    };
+    el.oncontextmenu = (e) => {
+      e.preventDefault();
+      if (confirm("delete this document?")) {
+        fetch("/api/docs/" + doc.id, { method: "DELETE" }).then(loadDocs);
+      }
+    };
+    box.appendChild(el);
+  }
+}
+
+async function loadTasks() {
+  const d = await fetch("/api/tasks").then((r) => r.json()).catch(() => ({ tasks: [] }));
+  const box = $("task-list");
+  if (!box) return;
+  box.innerHTML = "";
+  for (const t of d.tasks || []) {
+    const el = document.createElement("div");
+    el.className = "task" + (t.done ? " done" : "");
+    el.innerHTML = `<input type="checkbox" ${t.done ? "checked" : ""} /><span></span><button type="button" class="x">×</button>`;
+    el.querySelector("span").textContent = t.title;
+    el.querySelector("input").onchange = (e) => {
+      fetch("/api/tasks/" + t.id, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ done: e.target.checked }),
+      }).then(loadTasks);
+    };
+    el.querySelector(".x").onclick = () => {
+      fetch("/api/tasks/" + t.id, { method: "DELETE" }).then(loadTasks);
+    };
+    box.appendChild(el);
+  }
+}
+
 async function loadVault() {
   const d = await fetch("/api/vault").then((r) => r.json());
   const box = $("vault-list");
@@ -657,6 +729,9 @@ function openPalette() {
   q.focus();
   palItems = [
     { title: "New thread", sub: "/new", run: () => newChat() },
+    { title: "Research", sub: "/research", run: () => { input.value = "Research this: "; input.focus(); } },
+    { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
+    { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
     { title: "Focus mode", sub: "Ctrl+.", run: () => { settings.focus = !settings.focus; saveSettings(); } },
     { title: "Improve CORTEX", sub: "/improve", run: () => handleSlash("/improve") },
     { title: "Export thread", sub: "JSON", run: exportThread },
@@ -785,3 +860,40 @@ loadSessions().then(() => {
   if (sessionId) openSession(sessionId);
 });
 loadVault();
+loadDocs();
+loadTasks();
+
+$("doc-new").onclick = async () => {
+  const title = $("doc-title").value.trim();
+  if (!title) return;
+  await fetch("/api/docs", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title, body: artifact.code || "", kind: "note" }),
+  });
+  $("doc-title").value = "";
+  loadDocs();
+};
+$("task-new").onclick = async () => {
+  const title = $("task-title").value.trim();
+  if (!title) return;
+  await fetch("/api/tasks", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  $("task-title").value = "";
+  loadTasks();
+};
+$("task-title").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    $("task-new").click();
+  }
+});
+$("doc-title").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    $("doc-new").click();
+  }
+});

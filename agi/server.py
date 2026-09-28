@@ -28,6 +28,7 @@ from starlette.requests import Request
 from agi import __version__
 from agi.config import HOST, PORT, WEB_DIR, ensure_dirs
 from agi.mind.core import get_agi
+from agi.mind.desk import get_desk
 from agi.mind.workspace import PROMPTS, get_workspace
 
 
@@ -84,6 +85,26 @@ class TeachIn(BaseModel):
 class SessionIn(BaseModel):
     title: str | None = None
     pinned: bool | None = None
+
+
+class DocIn(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)
+    body: str = Field("", max_length=80000)
+    kind: str = "note"
+
+
+class DocPatch(BaseModel):
+    title: str | None = None
+    body: str | None = None
+
+
+class TaskIn(BaseModel):
+    title: str | None = None
+    done: bool | None = None
+
+
+class ResearchIn(BaseModel):
+    topic: str = Field(..., min_length=2, max_length=400)
 
 
 class CompletionsIn(BaseModel):
@@ -258,6 +279,78 @@ async def api_ingest(file: UploadFile = File(...)):
         stem = (file.filename or "upload").rsplit("/", 1)[-1].rsplit(".", 1)[0][:80]
         get_agi().teach(stem or "upload", (result.get("excerpt") or "")[:4000])
     return result
+
+
+@app.get("/api/docs")
+def api_docs():
+    return {"docs": get_desk().list_docs()}
+
+
+@app.post("/api/docs")
+def api_doc_new(body: DocIn):
+    return get_desk().write_doc(body.title, body.body, kind=body.kind)
+
+
+@app.get("/api/docs/{did}")
+def api_doc_get(did: str):
+    d = get_desk().get_doc(did)
+    if not d:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return d
+
+
+@app.patch("/api/docs/{did}")
+def api_doc_patch(did: str, body: DocPatch):
+    d = get_desk().save_doc(did, title=body.title, body=body.body)
+    if not d:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return d
+
+
+@app.delete("/api/docs/{did}")
+def api_doc_del(did: str):
+    return {"ok": get_desk().delete_doc(did)}
+
+
+@app.get("/api/tasks")
+def api_tasks():
+    return {"tasks": get_desk().list_tasks()}
+
+
+@app.post("/api/tasks")
+def api_task_new(body: TaskIn):
+    if not (body.title or "").strip():
+        return JSONResponse({"error": "title required"}, status_code=400)
+    return get_desk().add_task(body.title.strip(), source="api")
+
+
+@app.patch("/api/tasks/{tid}")
+def api_task_patch(tid: str, body: TaskIn):
+    t = get_desk().patch_task(tid, done=body.done, title=body.title if body.title else None)
+    if not t:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return t
+
+
+@app.delete("/api/tasks/{tid}")
+def api_task_del(tid: str):
+    return {"ok": get_desk().delete_task(tid)}
+
+
+@app.post("/api/research")
+def api_research(body: ResearchIn):
+    from agi.mind.research import investigate
+
+    report = investigate(get_agi(), body.topic)
+    return {
+        "title": report.title,
+        "markdown": report.markdown,
+        "confidence": report.confidence,
+        "doc_id": report.doc_id,
+        "sources": [{"kind": s.kind, "title": s.title, "url": s.url} for s in report.sources],
+        "chain": report.chain,
+        "tasks": report.tasks,
+    }
 
 
 @app.websocket("/ws")
