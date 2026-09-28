@@ -54,6 +54,15 @@ Hard questions run **System 2** before speaking:
 
 The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
 
+## Agent & compare (v0.6)
+
+Odysseus's headline is **agents + compare + cookbook**. Those are wrappers. CORTEX owns them:
+
+- **`do:`** — a bounded tool loop (knowledge, vault, memory, math, public URLs). No bash, no MCP, no silent root. The trace is a document that trains the core.
+- **`compare A and B`** — one chain, two characterizations, a split. Not five vendor APIs side-by-side.
+- **Core** — one growing `model.gguf` / `model.safetensors`, not a catalogue of 270 downloads.
+- **Desk rail** — threads, documents, and open tasks in one column. Odysseus splits them into apps.
+
 ## Desk (v0.5) — built to beat Odysseus
 
 [Odysseus](https://github.com/odysseus-dev/odysseus) is a self-hosted **suite**: chat wrapping Ollama, a research agent wrapping the web, a document app, email, calendar, 270-model cookbook. Useful. Not an AGI.

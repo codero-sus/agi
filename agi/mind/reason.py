@@ -139,6 +139,10 @@ def _strip_prompt(text: str) -> str:
     ).strip()
 
 
+def sides_of(text: str) -> tuple[str, str] | None:
+    return _pair(text)
+
+
 def _pair(text: str) -> tuple[str, str] | None:
     t = text.strip().rstrip("?")
     m = re.search(r"difference between (.+) and (.+)$", t, re.I)

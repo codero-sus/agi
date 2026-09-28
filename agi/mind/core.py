@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Iterator
 
+from agi.config import GGUF_PATH, MODEL_DIR, SAFETENSORS_PATH
 from agi.improve.loop import SelfImprovement
 from agi.inference.loader import ModelEngine, load_engine
 from agi.mind.cognition import Cognition
@@ -129,6 +130,11 @@ class AGI:
             "latency_ms": self.last_latency_ms,
             "chain": self.last_chain,
             "desk": get_desk().counts(),
+            "core": {
+                "gguf": GGUF_PATH.exists(),
+                "safetensors": SAFETENSORS_PATH.exists(),
+                "model_dir": str(MODEL_DIR),
+            },
         }
 
 

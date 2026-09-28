@@ -353,6 +353,34 @@ def api_research(body: ResearchIn):
     }
 
 
+@app.post("/api/compare")
+def api_compare(body: ResearchIn):
+    from agi.mind.research import compare_brief
+
+    report = compare_brief(get_agi(), body.topic)
+    return {
+        "title": report.title,
+        "markdown": report.markdown,
+        "confidence": report.confidence,
+        "doc_id": report.doc_id,
+        "chain": report.chain,
+    }
+
+
+@app.post("/api/agent")
+def api_agent(body: ResearchIn):
+    from agi.mind.agent import act
+
+    run = act(get_agi(), body.topic)
+    return {
+        "goal": run.goal,
+        "markdown": run.markdown,
+        "confidence": run.confidence,
+        "doc_id": run.doc_id,
+        "tasks": run.tasks,
+    }
+
+
 @app.websocket("/ws")
 async def ws_chat(ws: WebSocket):
     await ws.accept()

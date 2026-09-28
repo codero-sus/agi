@@ -12,7 +12,7 @@
   --blue: #7aa2ff;
   --danger: #ff5d6c;
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  --chats: 250px;
+  --chats: 260px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,7 +59,21 @@ body.focus .desk { grid-template-columns: 1fr; }
   gap: 10px;
   background: rgba(5, 6, 10, 0.55);
   backdrop-filter: blur(18px);
+  overflow: auto;
 }
+.rail-block { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.rail-h {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mint);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.rail-h b { color: var(--muted); font-weight: 500; }
+.chat-list.mini { max-height: 22vh; flex: 0 1 auto; }
 .chats-brand { display: flex; align-items: center; gap: 10px; }
 .logo {
   font-family: Syne, sans-serif;
