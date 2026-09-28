@@ -15,9 +15,12 @@ TEXT_EXT = {".txt", ".md", ".py", ".json", ".csv", ".html", ".css", ".js", ".ts"
 MAX_FILE = 400_000
 
 PROMPTS = [
+    {"id": "research", "title": "Research", "body": "Research this: "},
     {"id": "why", "title": "Explain why", "body": "Why does this work, in mechanism not slogans:\n"},
     {"id": "compare", "title": "Compare", "body": "Compare A and B on primitives, domain, and failure modes:\n"},
     {"id": "plan", "title": "Plan", "body": "Plan this as goal → gap → next action:\n"},
+    {"id": "note", "title": "Note", "body": "Note: "},
+    {"id": "todo", "title": "Todo", "body": "Todo: "},
     {"id": "review", "title": "Review code", "body": "Review this code. Bugs, complexity, tests:\n\n```\n\n```"},
     {"id": "teach", "title": "Teach CORTEX", "body": "Learn this: Title — "},
     {"id": "improve", "title": "Self-improve", "body": "Improve yourself"},
@@ -161,6 +164,31 @@ class Workspace:
         if p.exists() and p.is_file():
             return p.read_text(encoding="utf-8", errors="replace")[:20000]
         return None
+
+    def search_vault(self, query: str, k: int = 4) -> list[dict]:
+        toks = [t for t in re.split(r"\W+", (query or "").lower()) if len(t) > 2]
+        if not toks:
+            return []
+        VAULT_DIR.mkdir(parents=True, exist_ok=True)
+        scored: list[tuple[float, dict]] = []
+        for p in VAULT_DIR.iterdir():
+            if not p.is_file():
+                continue
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")[:20000]
+            except Exception:
+                continue
+            hay = (p.name + " " + text).lower()
+            score = sum(1.0 for t in toks if t in hay)
+            if p.stem.lower() in (query or "").lower():
+                score += 3
+            if score:
+                idx = hay.find(toks[0])
+                start = max(0, idx - 80)
+                excerpt = text[start : start + 500]
+                scored.append((score, {"name": p.name, "score": score, "excerpt": excerpt, "chars": len(text)}))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [d for _, d in scored[:k]]
 
 
 _WS: Workspace | None = None

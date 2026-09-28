@@ -8,7 +8,7 @@ import time
 from typing import TYPE_CHECKING, Iterator
 
 from agi.mind.knowledge import try_convert, try_math
-from agi.mind.reason import FAST_INTENTS, Reasoner
+from agi.mind.reason import Chain, Reasoner
 
 if TYPE_CHECKING:
     from agi.mind.core import AGI
@@ -22,6 +22,14 @@ _HIGH_CONFIDENCE = {
 
 def classify(text: str) -> str:
     t = text.strip().lower()
+    if re.match(r"^(deep\s+)?research\b", t) or re.search(
+        r"\b(write a report on|investigate|look into)\b", t
+    ):
+        return "research"
+    if re.match(r"^(note:|take a note\b|write a note\b|jot\b)", t):
+        return "note"
+    if re.match(r"^(todo:|remind me(?: to)?|add task\b|add a task\b)", t):
+        return "task"
     if re.search(r"\b(who are you|what are you|your name|about yourself|what is cortex)\b", t):
         return "identity"
     if re.search(r"\b(how do you work|architecture|your (brain|mind|model)|safetensors|gguf)\b", t):
@@ -146,7 +154,31 @@ class Cognition:
             yield thought("act", conv_v)
 
         act_note = None
-        if intent == "improve":
+        extra_done: dict = {}
+        if intent == "research":
+            from agi.mind.research import investigate
+
+            yield thought("plan", "Deep research: local mind, vault, Wikipedia, then a cited report.")
+            report = investigate(agi, user)
+            for kind, text in report.steps:
+                yield thought(kind, text)
+            reply = report.markdown
+            act_note = f"research → {report.title}"
+            chain_obj = Chain(
+                question=user, strategy="research", system=2, answer=reply, confidence=report.confidence
+            )
+            for kind, text in report.steps:
+                chain_obj.add(kind, text)
+            extra_done = {"doc_id": report.doc_id}
+        elif intent == "note":
+            reply = self._compose_note(user)
+            act_note = "wrote document"
+            yield thought("act", "Wrote a document on the desk.")
+        elif intent == "task":
+            reply = self._compose_task(user)
+            act_note = "added task"
+            yield thought("act", reply)
+        elif intent == "improve":
             yield thought("plan", "Running critic + self-eval; neural steps go to the background trainer.")
             ev = agi.improver.cycle(reason="user")
             yield thought("act", "Cycle events: " + ", ".join(e.get("kind", "?") for e in ev))
@@ -219,7 +251,7 @@ class Cognition:
         for chunk in _chunk_text(reply):
             yield {"type": "token", "text": chunk}
 
-        yield {
+        done = {
             "type": "done",
             "message": reply,
             "intent": intent,
@@ -229,6 +261,8 @@ class Cognition:
             "strategy": chain_obj.strategy,
             "confidence": chain_obj.confidence,
         }
+        done.update(extra_done)
+        yield done
 
     def quick_answer(self, user: str) -> str:
         intent = classify(user)
@@ -420,6 +454,31 @@ class Cognition:
             "I can write and run Python here. Try: `run python: print(2**10)` "
             f"or describe the function you want. I parsed the task as: {task}."
         )
+
+    def _compose_note(self, user: str) -> str:
+        from agi.mind.desk import get_desk
+
+        body = re.sub(r"^(note:|take a note|write a note|jot)\s*", "", user, flags=re.I).strip()
+        if " — " in body:
+            title, rest = body.split(" — ", 1)
+        elif ":" in body[:80]:
+            title, rest = body.split(":", 1)
+        else:
+            title, rest = (body[:48] or "note"), body
+        doc = get_desk().write_doc(title.strip()[:80] or "note", rest.strip() or body, kind="note")
+        self.agi.memory.add_fact("user", "note", doc["title"], 0.85)
+        self.agi.engine.train_on(f"{doc['title']}. {rest.strip() or body}", steps=4, blocking=False)
+        return f"Noted **{doc['title']}** as document `{doc['id']}`. It lives on the desk and in memory."
+
+    def _compose_task(self, user: str) -> str:
+        from agi.mind.desk import get_desk
+
+        title = re.sub(
+            r"^(todo:|remind me(?: to)?|add(?: a)? task)\s*", "", user, flags=re.I
+        ).strip() or user.strip()
+        t = get_desk().add_task(title, source="chat")
+        self.agi.goals.add(t["title"], why="user task")
+        return f"Task **{t['title']}**. Open the tasks tab or say `todo: …` again."
 
     def _compose_plan(self, user: str) -> str:
         task = re.sub(r"^(please\s+)?(plan|help me|how (do|can|should) i)\s+", "", user, flags=re.I).strip()

@@ -54,6 +54,24 @@ Hard questions run **System 2** before speaking:
 
 The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
 
+## Desk (v0.5) — built to beat Odysseus
+
+[Odysseus](https://github.com/odysseus-dev/odysseus) is a self-hosted **suite**: chat wrapping Ollama, a research agent wrapping the web, a document app, email, calendar, 270-model cookbook. Useful. Not an AGI.
+
+CORTEX is one mind that does the jobs people actually open Odysseus for:
+
+| Odysseus | CORTEX |
+|---|---|
+| Wraps Ollama / OpenAI / vLLM | **Is** the model (`model.gguf` / `model.safetensors` / CortexGPT) |
+| Deep research as a separate agent | System-2 research → cited report → **taught back into weights** |
+| Documents as an editor app | Documents the mind owns; they train it |
+| Tasks / calendar as productivity | Tasks as working memory, spawned from research |
+| Skills via MCP servers | Skills as Python the AGI writes |
+| Compare five APIs | Compare hypotheses in one chain |
+| Cookbook of 270 downloads | One core that grows |
+
+Say `research this: photosynthesis`, `note: …`, `todo: …`. Reports land in **docs**, next actions in **todo**, evidence in the live chain.
+
 ## Workspace (v0.4) — built to beat Open WebUI
 
 Open WebUI is a wrapper around someone else's model. CORTEX is the model, the mind, and the UI:
