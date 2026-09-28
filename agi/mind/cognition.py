@@ -26,6 +26,13 @@ def classify(text: str) -> str:
         r"\b(write a report on|investigate|look into)\b", t
     ):
         return "research"
+    if re.match(r"^(do:|agent:|handle this:|work on:|use tools\b)", t):
+        return "agent"
+    if re.search(r"\b(compare|vs\.?|versus|difference between)\b", t):
+        from agi.mind.reason import sides_of
+
+        if sides_of(text):
+            return "compare"
     if re.match(r"^(note:|take a note\b|write a note\b|jot\b)", t):
         return "note"
     if re.match(r"^(todo:|remind me(?: to)?|add task\b|add a task\b)", t):
@@ -170,6 +177,36 @@ class Cognition:
             for kind, text in report.steps:
                 chain_obj.add(kind, text)
             extra_done = {"doc_id": report.doc_id}
+        elif intent == "compare":
+            from agi.mind.research import compare_brief
+
+            yield thought("plan", "Compare both sides with the same source budget. Save a brief.")
+            report = compare_brief(agi, user)
+            for kind, text in report.steps:
+                yield thought(kind, text)
+            reply = report.markdown
+            act_note = f"compare → {report.title}"
+            chain_obj = Chain(
+                question=user, strategy="compare", system=2, answer=reply, confidence=report.confidence
+            )
+            for kind, text in report.steps:
+                chain_obj.add(kind, text)
+            extra_done = {"doc_id": report.doc_id}
+        elif intent == "agent":
+            from agi.mind.agent import act
+
+            yield thought("plan", "Agent loop: tools, then a trace. No shell, no MCP.")
+            run = act(agi, user)
+            for kind, text in run.steps:
+                yield thought(kind, text)
+            reply = run.markdown
+            act_note = f"agent → {run.goal[:80]}"
+            chain_obj = Chain(
+                question=user, strategy="agent", system=2, answer=reply, confidence=run.confidence
+            )
+            for kind, text in run.steps:
+                chain_obj.add(kind, text)
+            extra_done = {"doc_id": run.doc_id}
         elif intent == "note":
             reply = self._compose_note(user)
             act_note = "wrote document"

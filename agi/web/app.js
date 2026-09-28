@@ -87,9 +87,9 @@ function handle(msg) {
       decorateCode(body);
       if (msg.chain) attachChain(currentAgi, msg.chain);
       harvestArtifact(raw);
-      if (msg.intent === "research" || msg.doc_id) {
+      if (msg.intent === "research" || msg.intent === "compare" || msg.intent === "agent" || msg.doc_id) {
         artifact = { lang: "md", code: raw };
-        $("art-label").textContent = msg.strategy === "research" ? "research report" : "document";
+        $("art-label").textContent = msg.strategy || "document";
         $("art-code").textContent = raw;
         showTab("docs");
         loadDocs();
@@ -217,7 +217,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /clear /export /improve /research q /note t /todo t /search q /teach title — body /stop /focus /think", true);
+    bubble("agi", "Commands: /new /clear /export /improve /research q /do q /compare a vs b /note t /todo t /search q /teach title — body /stop /focus /think", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -247,6 +247,14 @@ function handleSlash(t) {
   }
   if (cmd === "research" && arg) {
     send("Research this: " + arg);
+    return true;
+  }
+  if ((cmd === "do" || cmd === "agent") && arg) {
+    send("Do: " + arg);
+    return true;
+  }
+  if (cmd === "compare" && arg) {
+    send("Compare " + arg);
     return true;
   }
   if (cmd === "note" && arg) {
@@ -470,6 +478,23 @@ function renderState(s) {
   const engine = s.engine || {};
   const neural = s.neural || {};
   $("self-desc").textContent = ident.self_description || "";
+  const core = s.core || {};
+  const coreKv = $("core-kv");
+  if (coreKv) {
+    coreKv.innerHTML = "";
+    const rows = [
+      ["source", engine.source],
+      ["backend", engine.backend],
+      ["gguf", core.gguf ? "present" : "drop model/model.gguf"],
+      ["safetensors", core.safetensors ? "present" : "will write as I train"],
+      ["dir", core.model_dir],
+    ];
+    for (const [k, v] of rows) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${esc(k)}</span><b>${esc(v)}</b>`;
+      coreKv.appendChild(li);
+    }
+  }
   $("src-pill").textContent = `${engine.source || "?"} · ${engine.backend || "?"}`;
   $("src-pill").className = "pill" + (engine.warning ? " warn" : "");
   $("turn-pill").textContent = `turns ${ident.turns ?? 0}`;
@@ -679,6 +704,26 @@ async function loadDocs() {
     };
     box.appendChild(el);
   }
+  const rail = $("rail-docs");
+  const n = $("rail-doc-n");
+  if (n) n.textContent = String((d.docs || []).length);
+  if (rail) {
+    rail.innerHTML = "";
+    for (const doc of (d.docs || []).slice(0, 6)) {
+      const el = document.createElement("div");
+      el.className = "chat-item";
+      el.innerHTML = `<div>${esc(doc.title)}</div><div class="meta">${esc(doc.kind)}</div>`;
+      el.onclick = () => {
+        fetch("/api/docs/" + doc.id).then((r) => r.json()).then((full) => {
+          artifact = { lang: "md", code: full.body || "" };
+          $("art-label").textContent = full.title;
+          $("art-code").textContent = artifact.code;
+          showTab("artifact");
+        });
+      };
+      rail.appendChild(el);
+    }
+  }
 }
 
 async function loadTasks() {
@@ -702,6 +747,20 @@ async function loadTasks() {
       fetch("/api/tasks/" + t.id, { method: "DELETE" }).then(loadTasks);
     };
     box.appendChild(el);
+  }
+  const rail = $("rail-tasks");
+  const n = $("rail-task-n");
+  const open = (d.tasks || []).filter((t) => !t.done);
+  if (n) n.textContent = String(open.length);
+  if (rail) {
+    rail.innerHTML = "";
+    for (const t of open.slice(0, 6)) {
+      const el = document.createElement("div");
+      el.className = "chat-item";
+      el.textContent = t.title;
+      el.onclick = () => showTab("tasks");
+      rail.appendChild(el);
+    }
   }
 }
 
@@ -730,6 +789,8 @@ function openPalette() {
   palItems = [
     { title: "New thread", sub: "/new", run: () => newChat() },
     { title: "Research", sub: "/research", run: () => { input.value = "Research this: "; input.focus(); } },
+    { title: "Do (agent)", sub: "/do", run: () => { input.value = "Do: "; input.focus(); } },
+    { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
     { title: "Focus mode", sub: "Ctrl+.", run: () => { settings.focus = !settings.focus; saveSettings(); } },

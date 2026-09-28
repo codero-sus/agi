@@ -22,8 +22,19 @@
       </div>
     </div>
     <button type="button" id="new-chat" class="ghost">+ new thread</button>
-    <input id="chat-q" class="find" placeholder="search threads…" />
-    <div id="chat-list" class="chat-list"></div>
+    <div class="rail-block">
+      <div class="rail-h">threads</div>
+      <input id="chat-q" class="find" placeholder="search threads…" />
+      <div id="chat-list" class="chat-list"></div>
+    </div>
+    <div class="rail-block">
+      <div class="rail-h">docs <b id="rail-doc-n">0</b></div>
+      <div id="rail-docs" class="chat-list mini"></div>
+    </div>
+    <div class="rail-block">
+      <div class="rail-h">tasks <b id="rail-task-n">0</b></div>
+      <div id="rail-tasks" class="chat-list mini"></div>
+    </div>
   </aside>
 
   <div class="workspace">
@@ -59,7 +70,7 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex</div>
-            <div class="body">I am not Odysseus wrapping Ollama. I am the model, the chain of thought, the desk. Say <code>research this:</code>, drop a file, jot a <code>note:</code>, or press ⌘K.</div>
+            <div class="body">Odysseus is a suite wrapping other models. I am the model. <code>research this:</code> writes a cited report into me. <code>do:</code> runs tools without a shell. <code>compare A and B</code> is one chain, not five APIs. Drop a file or press ⌘K.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
@@ -131,6 +142,9 @@
           <div id="vault-list" class="facts"></div>
         </div>
         <div class="tab-body" id="tab-mind">
+          <h2>Core</h2>
+          <p class="lede">Odysseus catalogues 270 downloads. I grow one core. Drop <code>model/model.gguf</code> or <code>model.safetensors</code> here.</p>
+          <ul class="kv" id="core-kv"></ul>
           <h2>Identity</h2>
           <p class="lede" id="self-desc">Loading mind…</p>
           <ul class="kv" id="identity-kv"></ul>

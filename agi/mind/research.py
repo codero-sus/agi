@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from agi.mind.desk import get_desk
 from agi.mind.net import wiki_search, wiki_summary
-from agi.mind.reason import Chain
+from agi.mind.reason import Chain, sides_of
 from agi.mind.workspace import get_workspace
 
 if TYPE_CHECKING:
@@ -209,3 +209,81 @@ def _first_sentences(text: str, n: int) -> str:
         return "(empty)"
     parts = re.split(r"(?<=[.!?])\s+", text)
     return " ".join(parts[:n])[:600]
+
+
+def _pack_side(agi: "AGI", name: str) -> list[Source]:
+    out: list[Source] = []
+    for a in agi.knowledge.search(name, k=2):
+        out.append(Source("knowledge", a.title, a.body[:900], score=0.85))
+    for v in get_workspace().search_vault(name, k=2):
+        out.append(Source("vault", v["name"], v.get("excerpt") or "", score=0.75))
+    hits = wiki_search(name, k=2)
+    if hits:
+        summ = wiki_summary(hits[0]["title"])
+        if summ:
+            out.append(Source("wikipedia", summ["title"], summ["extract"], url=summ["url"], score=0.9))
+    return out
+
+
+def compare_brief(agi: "AGI", user: str) -> Report:
+    pair = sides_of(user)
+    if not pair:
+        return investigate(agi, user)
+    left, right = pair
+    steps: list[tuple[str, str]] = []
+    chain = Chain(question=user, strategy="compare", system=2, confidence=0.6)
+
+    def add(kind: str, text: str, conf: float = 0.75) -> None:
+        chain.add(kind, text, conf)
+        steps.append((kind, text))
+
+    add("parse", f"Compare “{left}” vs “{right}”. Need primitives, overlap, split, failure modes.")
+    add("strategy", "Same sources on both sides. Odysseus compares APIs; I compare ideas.")
+    a_src = _pack_side(agi, left)
+    b_src = _pack_side(agi, right)
+    add("retrieve", f"{left}: {len(a_src)} sources. {right}: {len(b_src)} sources.")
+
+    def blurb(srcs: list[Source], name: str) -> str:
+        if not srcs:
+            return f"No stored account of {name}."
+        return _first_sentences(srcs[0].excerpt, 2)
+
+    md = "\n".join(
+        [
+            f"# {left} vs {right}",
+            "",
+            "Odysseus would send this prompt to five vendors. One mind, two characterizations, then the joint and the split.",
+            "",
+            f"## {left}",
+            blurb(a_src, left),
+            "",
+            f"## {right}",
+            blurb(b_src, right),
+            "",
+            "## Joint",
+            "Both are attempts to name a structure. Shared words are not shared mechanisms — check the primitives.",
+            "",
+            "## Split",
+            f"- Domain of {left} vs domain of {right}.",
+            "- What each cannot explain without borrowing the other's terms.",
+            "- Failure mode: collapsing the pair into a slogan.",
+            "",
+            "## Evidence",
+            "\n".join(
+                f"- _{s.kind}_ **{s.title}**" + (f" ([source]({s.url}))" if s.url else "") + f": {_first_sentences(s.excerpt, 1)}"
+                for s in (a_src + b_src)[:8]
+            )
+            or "- none yet",
+            "",
+            "_Saved as a compare brief and taught back._",
+            "",
+        ]
+    )
+    conf = min(0.88, 0.4 + 0.08 * (len(a_src) + len(b_src)))
+    add("decide", f"Commit compare brief · conf {conf:.0%}.")
+    chain.answer = md
+    chain.confidence = conf
+    title = f"Compare: {left} vs {right}"
+    doc = get_desk().write_doc(title, md, kind="compare")
+    agi.teach(title, md[:2000])
+    return Report(f"{left} vs {right}", title, md, a_src + b_src, steps, round(conf, 3), doc["id"], chain.as_dict(), [])
