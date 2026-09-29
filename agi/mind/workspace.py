@@ -17,6 +17,8 @@ MAX_FILE = 400_000
 PROMPTS = [
     {"id": "research", "title": "Research", "body": "Research this: "},
     {"id": "do", "title": "Do", "body": "Do: "},
+    {"id": "spawn", "title": "Spawn agent", "body": "create agent Name — mission: "},
+    {"id": "runagent", "title": "Run agent", "body": "run Operator: "},
     {"id": "why", "title": "Explain why", "body": "Why does this work, in mechanism not slogans:\n"},
     {"id": "compare", "title": "Compare", "body": "Compare A and B on primitives, domain, and failure modes:\n"},
     {"id": "plan", "title": "Plan", "body": "Plan this as goal → gap → next action:\n"},

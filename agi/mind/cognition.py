@@ -26,7 +26,11 @@ def classify(text: str) -> str:
         r"\b(write a report on|investigate|look into)\b", t
     ):
         return "research"
-    if re.match(r"^(do:|agent:|handle this:|work on:|use tools\b)", t):
+    from agi.mind.agent import parse_run, parse_spawn
+
+    if parse_spawn(text):
+        return "spawn"
+    if parse_run(text) or re.match(r"^(do:|agent:|handle this:|work on:|use tools\b)", t):
         return "agent"
     if re.search(r"\b(compare|vs\.?|versus|difference between)\b", t):
         from agi.mind.reason import sides_of
@@ -192,21 +196,38 @@ class Cognition:
             for kind, text in report.steps:
                 chain_obj.add(kind, text)
             extra_done = {"doc_id": report.doc_id}
+        elif intent == "spawn":
+            from agi.mind.agent import spawn_from_text
+
+            yield thought("plan", "Spawn a named agent — mission + tool whitelist, no shell.")
+            try:
+                spec = spawn_from_text(agi, user)
+                reply = (
+                    f"Spawned **{spec.name}**. Mission: {spec.mission}\n\n"
+                    f"Tools: {', '.join(spec.tools)}\n\n"
+                    f"Run it with `@{spec.name} your goal` or `run {spec.name}: …`"
+                )
+                act_note = f"spawned {spec.name}"
+                extra_done = {"agent_id": spec.id}
+                yield thought("act", f"Roster now has {spec.name} ({spec.id}).")
+            except ValueError as e:
+                reply = str(e)
+                act_note = "spawn failed"
         elif intent == "agent":
             from agi.mind.agent import act
 
-            yield thought("plan", "Agent loop: tools, then a trace. No shell, no MCP.")
+            yield thought("plan", "Named agent: whitelist → tools → trace. No shell, no MCP.")
             run = act(agi, user)
             for kind, text in run.steps:
                 yield thought(kind, text)
             reply = run.markdown
-            act_note = f"agent → {run.goal[:80]}"
+            act_note = f"{run.agent} → {run.goal[:80]}"
             chain_obj = Chain(
                 question=user, strategy="agent", system=2, answer=reply, confidence=run.confidence
             )
             for kind, text in run.steps:
                 chain_obj.add(kind, text)
-            extra_done = {"doc_id": run.doc_id}
+            extra_done = {"doc_id": run.doc_id, "agent": run.agent}
         elif intent == "note":
             reply = self._compose_note(user)
             act_note = "wrote document"

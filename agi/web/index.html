@@ -35,6 +35,10 @@
       <div class="rail-h">tasks <b id="rail-task-n">0</b></div>
       <div id="rail-tasks" class="chat-list mini"></div>
     </div>
+    <div class="rail-block">
+      <div class="rail-h">agents <b id="rail-agent-n">0</b></div>
+      <div id="rail-agents" class="chat-list mini"></div>
+    </div>
   </aside>
 
   <div class="workspace">
@@ -70,7 +74,7 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex</div>
-            <div class="body">Odysseus is a suite wrapping other models. I am the model. <code>research this:</code> writes a cited report into me. <code>do:</code> runs tools without a shell. <code>compare A and B</code> is one chain, not five APIs. Drop a file or press ⌘K.</div>
+            <div class="body">I spawn agents. <code>create agent Scout — mission: watch the vault tools: vault, note</code> then <code>@Scout what changed</code>. Named minds, tool whitelist, no shell. Odysseus bolts MCP onto someone else's model. These agents are me.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
@@ -79,7 +83,10 @@
           <div class="row">
             <button type="button" id="attach-btn" class="icon-btn" title="Attach file">＋</button>
             <button type="button" id="mic-btn" class="icon-btn" title="Voice">mic</button>
-            <textarea id="input" rows="2" placeholder="Message CORTEX…  / for commands, ⌘K for palette"></textarea>
+            <select id="agent-sel" class="agent-sel" title="Run as agent">
+              <option value="">CORTEX</option>
+            </select>
+            <textarea id="input" rows="2" placeholder="Message CORTEX…  @Name to run an agent, /spawn to create one"></textarea>
             <div class="send-col">
               <span id="chars" class="chars">0</span>
               <button id="send" type="submit" title="Send">↑</button>
@@ -95,6 +102,7 @@
           <button type="button" data-tab="artifact">art</button>
           <button type="button" data-tab="docs">docs</button>
           <button type="button" data-tab="tasks">todo</button>
+          <button type="button" data-tab="agents">crew</button>
           <button type="button" data-tab="memory">mem</button>
           <button type="button" data-tab="vault">vault</button>
           <button type="button" data-tab="mind">mind</button>
@@ -130,6 +138,15 @@
             <button type="button" id="task-new" class="ghost sm">add</button>
           </div>
           <div id="task-list" class="tasks"></div>
+        </div>
+        <div class="tab-body" id="tab-agents">
+          <h2>Agents</h2>
+          <p class="lede">Named slices of this mind. Mission + tools. Spawn more; they persist and train the core.</p>
+          <input id="agent-name" class="find" placeholder="name (Scout)" />
+          <input id="agent-mission" class="find" placeholder="mission…" />
+          <input id="agent-tools" class="find" placeholder="tools: knowledge, vault, note" />
+          <button type="button" id="agent-new" class="ghost sm">spawn</button>
+          <div id="agent-list" class="facts"></div>
         </div>
         <div class="tab-body" id="tab-memory">
           <h2>Memory</h2>
