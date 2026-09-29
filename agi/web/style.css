@@ -246,6 +246,16 @@ textarea:focus { border-color: var(--mint); }
   font-size: 12px;
 }
 .icon-btn.on, .icon-btn:hover { color: var(--mint); border-color: var(--line); }
+.agent-sel {
+  max-width: 110px;
+  height: 36px;
+  background: #0a0d14;
+  color: var(--mint);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  font: 11px "IBM Plex Mono", monospace;
+  padding: 0 6px;
+}
 .send-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .chars { font: 10px "IBM Plex Mono", monospace; color: var(--muted); }
 .attach-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }

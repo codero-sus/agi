@@ -97,6 +97,7 @@ function handle(msg) {
       }
       if (msg.intent === "note") loadDocs();
       if (msg.intent === "task") loadTasks();
+      if (msg.intent === "spawn" || msg.intent === "agent") loadAgents();
       if (settings.speak) speak(raw);
     }
     currentAgi = null;
@@ -190,6 +191,10 @@ function appendToken(text) {
 
 function send(text, opts = {}) {
   let t = (text || input.value).trim();
+  const who = $("agent-sel") && $("agent-sel").value;
+  if (who && t && !t.startsWith("/") && !t.startsWith("@") && !/^run\s/i.test(t) && !/^do:/i.test(t) && !opts.noAgent) {
+    t = `@${who} ${t}`;
+  }
   if (!t && !attachments.length) return;
   if (t.startsWith("/") && handleSlash(t)) {
     input.value = "";
@@ -217,7 +222,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /clear /export /improve /research q /do q /compare a vs b /note t /todo t /search q /teach title — body /stop /focus /think", true);
+    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /stop /focus /agents", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -250,7 +255,20 @@ function handleSlash(t) {
     return true;
   }
   if ((cmd === "do" || cmd === "agent") && arg) {
-    send("Do: " + arg);
+    send("Do: " + arg, { noAgent: true });
+    return true;
+  }
+  if ((cmd === "spawn" || cmd === "create") && arg) {
+    send("create agent " + arg, { noAgent: true });
+    return true;
+  }
+  if (cmd === "run" && arg) {
+    send("run " + arg, { noAgent: true });
+    return true;
+  }
+  if (cmd === "agents") {
+    showTab("agents");
+    loadAgents();
     return true;
   }
   if (cmd === "compare" && arg) {
@@ -764,6 +782,59 @@ async function loadTasks() {
   }
 }
 
+async function loadAgents() {
+  const d = await fetch("/api/agents").then((r) => r.json()).catch(() => ({ agents: [] }));
+  const agents = d.agents || [];
+  const box = $("agent-list");
+  if (box) {
+    box.innerHTML = "";
+    for (const a of agents) {
+      const el = document.createElement("div");
+      el.textContent = `${a.name} · ${(a.tools || []).join(", ")} · ${a.runs} runs`;
+      el.onclick = () => {
+        if ($("agent-sel")) $("agent-sel").value = a.name;
+        input.value = `run ${a.name}: `;
+        input.focus();
+      };
+      el.oncontextmenu = (e) => {
+        e.preventDefault();
+        if (confirm("retire " + a.name + "?")) {
+          fetch("/api/agents/" + a.id, { method: "DELETE" }).then(loadAgents);
+        }
+      };
+      box.appendChild(el);
+    }
+  }
+  const rail = $("rail-agents");
+  const n = $("rail-agent-n");
+  if (n) n.textContent = String(agents.length);
+  if (rail) {
+    rail.innerHTML = "";
+    for (const a of agents.slice(0, 8)) {
+      const el = document.createElement("div");
+      el.className = "chat-item";
+      el.innerHTML = `<div>${esc(a.name)}</div><div class="meta">${esc((a.tools || []).slice(0, 3).join(" "))}</div>`;
+      el.onclick = () => {
+        if ($("agent-sel")) $("agent-sel").value = a.name;
+        showTab("agents");
+      };
+      rail.appendChild(el);
+    }
+  }
+  const sel = $("agent-sel");
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">CORTEX</option>`;
+    for (const a of agents) {
+      const o = document.createElement("option");
+      o.value = a.name;
+      o.textContent = a.name;
+      sel.appendChild(o);
+    }
+    if (cur) sel.value = cur;
+  }
+}
+
 async function loadVault() {
   const d = await fetch("/api/vault").then((r) => r.json());
   const box = $("vault-list");
@@ -790,6 +861,9 @@ function openPalette() {
     { title: "New thread", sub: "/new", run: () => newChat() },
     { title: "Research", sub: "/research", run: () => { input.value = "Research this: "; input.focus(); } },
     { title: "Do (agent)", sub: "/do", run: () => { input.value = "Do: "; input.focus(); } },
+    { title: "Spawn agent", sub: "/spawn", run: () => { input.value = "create agent "; input.focus(); } },
+    { title: "Run agent", sub: "/run", run: () => { input.value = "run Operator: "; input.focus(); } },
+    { title: "Crew", sub: "agents", run: () => { showTab("agents"); loadAgents(); } },
     { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
@@ -923,6 +997,7 @@ loadSessions().then(() => {
 loadVault();
 loadDocs();
 loadTasks();
+loadAgents();
 
 $("doc-new").onclick = async () => {
   const title = $("doc-title").value.trim();
@@ -934,6 +1009,20 @@ $("doc-new").onclick = async () => {
   });
   $("doc-title").value = "";
   loadDocs();
+};
+$("agent-new").onclick = async () => {
+  const name = $("agent-name").value.trim();
+  const mission = $("agent-mission").value.trim();
+  const tools = $("agent-tools").value.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
+  if (!name) return;
+  await fetch("/api/agents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, mission, tools }),
+  });
+  $("agent-name").value = "";
+  $("agent-mission").value = "";
+  loadAgents();
 };
 $("task-new").onclick = async () => {
   const title = $("task-title").value.trim();

@@ -54,6 +54,24 @@ Hard questions run **System 2** before speaking:
 
 The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
 
+## Agents you can create (v0.7)
+
+Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:
+
+```
+create agent Scout — mission: watch the vault tools: vault, note, knowledge
+@Scout what did we ingest
+run Researcher: photosynthesis
+```
+
+- Each agent has a **mission** and a **tool whitelist** (knowledge, vault, memory, math, python, wiki, fetch, note, task, research, hash, now)
+- Seed crew: Researcher, Critic, Tutor, Operator
+- Runs write a document and train the neural core
+- No bash, no MCP, no silent root — constitution travels with every spawn
+- API: `GET/POST /api/agents`, `POST /api/agents/{name}/run`
+
+Pick an agent in the composer or the crew tab. Right-click to retire one.
+
 ## Agent & compare (v0.6)
 
 Odysseus's headline is **agents + compare + cookbook**. Those are wrappers. CORTEX owns them:

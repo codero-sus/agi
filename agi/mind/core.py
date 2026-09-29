@@ -11,6 +11,7 @@ from agi.inference.loader import ModelEngine, load_engine
 from agi.mind.cognition import Cognition
 from agi.mind.goals import Goals
 from agi.mind.identity import Identity
+from agi.mind.agent import get_roster
 from agi.mind.desk import get_desk
 from agi.mind.knowledge import Knowledge
 from agi.mind.memory import Memory
@@ -130,6 +131,7 @@ class AGI:
             "latency_ms": self.last_latency_ms,
             "chain": self.last_chain,
             "desk": get_desk().counts(),
+            "agents": get_roster().list(),
             "core": {
                 "gguf": GGUF_PATH.exists(),
                 "safetensors": SAFETENSORS_PATH.exists(),

@@ -27,6 +27,7 @@ from starlette.requests import Request
 
 from agi import __version__
 from agi.config import HOST, PORT, WEB_DIR, ensure_dirs
+from agi.mind.agent import TOOL_NAMES, get_roster
 from agi.mind.core import get_agi
 from agi.mind.desk import get_desk
 from agi.mind.workspace import PROMPTS, get_workspace
@@ -105,6 +106,17 @@ class TaskIn(BaseModel):
 
 class ResearchIn(BaseModel):
     topic: str = Field(..., min_length=2, max_length=400)
+
+
+class AgentIn(BaseModel):
+    name: str = Field(..., min_length=2, max_length=40)
+    mission: str = Field("", max_length=400)
+    tools: list[str] = Field(default_factory=list)
+
+
+class AgentRunIn(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=400)
+    agent: str | None = None
 
 
 class CompletionsIn(BaseModel):
@@ -373,6 +385,49 @@ def api_agent(body: ResearchIn):
 
     run = act(get_agi(), body.topic)
     return {
+        "goal": run.goal,
+        "markdown": run.markdown,
+        "confidence": run.confidence,
+        "doc_id": run.doc_id,
+        "tasks": run.tasks,
+        "agent": run.agent,
+    }
+
+
+@app.get("/api/agents")
+def api_agents():
+    return {"agents": get_roster().list(), "tools": list(TOOL_NAMES)}
+
+
+@app.post("/api/agents")
+def api_agent_new(body: AgentIn):
+    try:
+        spec = get_roster().create(body.name, body.mission, body.tools, created_by="api")
+        return spec.as_dict()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/agents/{key}")
+def api_agent_get(key: str):
+    spec = get_roster().get(key)
+    if not spec:
+        return JSONResponse({"error": "missing"}, status_code=404)
+    return spec.as_dict()
+
+
+@app.delete("/api/agents/{key}")
+def api_agent_del(key: str):
+    return {"ok": get_roster().delete(key)}
+
+
+@app.post("/api/agents/{key}/run")
+def api_agent_run(key: str, body: AgentRunIn):
+    from agi.mind.agent import act
+
+    run = act(get_agi(), f"run {key}: {body.goal}")
+    return {
+        "agent": run.agent,
         "goal": run.goal,
         "markdown": run.markdown,
         "confidence": run.confidence,
