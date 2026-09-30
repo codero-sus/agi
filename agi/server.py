@@ -293,6 +293,14 @@ async def api_ingest(file: UploadFile = File(...)):
     return result
 
 
+@app.post("/api/import")
+async def api_import(file: UploadFile = File(...)):
+    raw = await file.read()
+    from agi.mind.importers import absorb
+
+    return absorb(get_agi(), file.filename or "export", raw)
+
+
 @app.get("/api/docs")
 def api_docs():
     return {"docs": get_desk().list_docs()}

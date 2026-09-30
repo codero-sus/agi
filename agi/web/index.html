@@ -92,7 +92,8 @@
               <button id="send" type="submit" title="Send">↑</button>
             </div>
           </div>
-          <input id="file" type="file" multiple hidden accept=".txt,.md,.py,.json,.csv,.html,.css,.js,.ts,.yml,.yaml,.toml,.rst,.ini" />
+          <input id="file" type="file" multiple hidden accept=".txt,.md,.py,.json,.jsonl,.csv,.html,.css,.js,.ts,.yml,.yaml,.toml,.rst,.ini,.zip" />
+          <input id="import-file" type="file" multiple hidden accept=".txt,.json,.jsonl,.csv,.zip" />
         </form>
       </section>
 
@@ -156,6 +157,8 @@
         <div class="tab-body" id="tab-vault">
           <h2>Vault</h2>
           <p class="lede">Drop files onto the page. Text becomes knowledge.</p>
+          <button type="button" id="import-btn" class="ghost sm">import chats</button>
+          <p class="lede">WhatsApp .txt/.zip, ChatGPT conversations.json, Claude, Telegram result.json, JSONL.</p>
           <div id="vault-list" class="facts"></div>
         </div>
         <div class="tab-body" id="tab-mind">

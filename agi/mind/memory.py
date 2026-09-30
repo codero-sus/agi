@@ -170,6 +170,26 @@ class Memory:
         self.working = self.working[-24:]
         return rid
 
+    def remember_many(self, items: list[tuple[str, str]]) -> int:
+        """One transaction for chat imports."""
+        n = 0
+        ts = time.time()
+        with self._lock:
+            for role, content in items:
+                content = (content or "").strip()[:2000]
+                if len(content) < 2:
+                    continue
+                vec = _embed(content)
+                cur = self.conn.execute(
+                    "INSERT INTO episodes (ts, role, content, embedding) VALUES (?, ?, ?, ?)",
+                    (ts, role, content, _blob(vec)),
+                )
+                rid = int(cur.lastrowid)
+                self._index_append(rid, ts, role, content, vec)
+                n += 1
+            self.conn.commit()
+        return n
+
     def search(self, query: str, k: int = 5) -> list[Episode]:
         if self._mat.shape[0] == 0:
             return []
