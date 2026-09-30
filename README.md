@@ -54,6 +54,20 @@ Hard questions run **System 2** before speaking:
 
 The chain streams live in the control plane and is attached to every reply. Fast facts (math, time, convert) stay System 1 with a short trace.
 
+## Import your other lives (v0.8)
+
+Drop an export onto the desk. CORTEX parses it, remembers the turns, opens a thread, and **trains the neural core** on the dialogue.
+
+| export | how |
+|---|---|
+| WhatsApp | Settings → Chat → Export chat → `.txt` or `.zip` |
+| ChatGPT | Settings → Data controls → Export → `conversations.json` |
+| Claude | conversation JSON download |
+| Telegram | Export chat history → `result.json` |
+| generic | OpenAI `messages` JSON, ShareGPT, JSONL, CSV |
+
+`POST /api/import` or the vault tab **import chats**. Caps: 25MB, 5000 turns. Private URLs stay blocked; this is local-only.
+
 ## Agents you can create (v0.7)
 
 Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:

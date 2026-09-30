@@ -35,7 +35,7 @@ class Identity:
             "name": "CORTEX",
             "species": "artificial general intelligence (growing)",
             "created": time.time(),
-            "version": "0.7.0",
+            "version": "0.8.0",
             "constitution_version": 1,
             "principles": list(DEFAULT_PRINCIPLES),
             "traits": dict(DEFAULT_TRAITS),

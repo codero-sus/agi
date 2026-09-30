@@ -110,6 +110,27 @@ class Workspace:
                 self._save()
                 return
 
+    def append_many(self, sid: str, messages: list[tuple[str, str]]) -> None:
+        with self._lock:
+            for s in self.data["sessions"]:
+                if s["id"] != sid:
+                    continue
+                bucket = s.setdefault("messages", [])
+                now = time.time()
+                for role, content in messages:
+                    bucket.append(
+                        {
+                            "id": uuid.uuid4().hex[:10],
+                            "role": role if role in ("user", "agi") else "user",
+                            "content": (content or "")[:2000],
+                            "ts": now,
+                            "meta": {"imported": True},
+                        }
+                    )
+                s["updated"] = now
+                self._save()
+                return
+
     def patch(self, sid: str, **fields) -> dict | None:
         with self._lock:
             for s in self.data["sessions"]:

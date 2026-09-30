@@ -271,6 +271,10 @@ function handleSlash(t) {
     loadAgents();
     return true;
   }
+  if (cmd === "import") {
+    $("import-file").click();
+    return true;
+  }
   if (cmd === "compare" && arg) {
     send("Compare " + arg);
     return true;
@@ -351,6 +355,8 @@ $("settings-btn").onclick = () => ($("settings").hidden = false);
 $("palette-btn").onclick = openPalette;
 $("toggle-chats").onclick = () => document.body.classList.toggle("show-chats");
 $("attach-btn").onclick = () => $("file").click();
+$("import-btn").onclick = () => $("import-file").click();
+$("import-file").onchange = () => importChats($("import-file").files);
 $("file").onchange = () => ingestFiles($("file").files);
 $("reload-model").onclick = () => fetch("/api/reload-model", { method: "POST" });
 $("opt-speak").onchange = (e) => { settings.speak = e.target.checked; saveSettings(); };
@@ -685,8 +691,41 @@ function renderAttach() {
   }
 }
 
-async function ingestFiles(fileList) {
+function looksLikeHistory(file) {
+  const n = (file.name || "").toLowerCase();
+  if (/\.(zip|jsonl)$/.test(n)) return true;
+  if (/conversations\.json|_chat\.txt|whatsapp|telegram|result\.json/.test(n)) return true;
+  if (n.endsWith(".json") && file.size > 8000) return true;
+  return false;
+}
+
+async function importChats(fileList) {
   for (const file of fileList || []) {
+    const fd = new FormData();
+    fd.append("file", file);
+    addThought("plan", `importing ${file.name}…`);
+    const res = await fetch("/api/import", { method: "POST", body: fd }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e) }));
+    if (res.ok) {
+      addThought("act", `imported ${res.filename}: ${res.turns} turns · ${res.threads} threads · trained ${res.trained} (${(res.source || []).join(", ")})`);
+      if (res.sessions && res.sessions[0]) {
+        loadSessions().then(() => openSession(res.sessions[0]));
+      }
+    } else addThought("error", res.error || "import failed");
+  }
+  loadDocs();
+  loadVault();
+  loadSessions();
+}
+
+async function ingestFiles(fileList) {
+  const hist = [];
+  const other = [];
+  for (const file of fileList || []) {
+    if (looksLikeHistory(file)) hist.push(file);
+    else other.push(file);
+  }
+  if (hist.length) await importChats(hist);
+  for (const file of other) {
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch("/api/ingest", { method: "POST", body: fd }).then((r) => r.json());
@@ -864,6 +903,7 @@ function openPalette() {
     { title: "Spawn agent", sub: "/spawn", run: () => { input.value = "create agent "; input.focus(); } },
     { title: "Run agent", sub: "/run", run: () => { input.value = "run Operator: "; input.focus(); } },
     { title: "Crew", sub: "agents", run: () => { showTab("agents"); loadAgents(); } },
+    { title: "Import chats", sub: "WhatsApp / ChatGPT / Claude", run: () => $("import-file").click() },
     { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
