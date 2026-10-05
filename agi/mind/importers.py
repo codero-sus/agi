@@ -54,6 +54,33 @@ ASSISTANT_ROLES = {
 }
 USER_ROLES = {"user", "human", "me", "you", "customer", "prompter"}
 
+TRANSFER_PROMPT = """You are exporting this conversation so CORTEX, a local AGI running on my machine, can remember it and train on it.
+
+Reply with JSON only. No markdown fences. No commentary before or after.
+
+Schema:
+{
+  "cortex_export": 1,
+  "source": "chatgpt",
+  "threads": [
+    {
+      "title": "short title for this chat",
+      "turns": [
+        {"role": "user", "content": "what I said"},
+        {"role": "agi", "content": "what you said"}
+      ]
+    }
+  ]
+}
+
+Rules:
+- role is only "user" or "agi" (you are agi)
+- Include the real conversation we have had, in order. Do not invent turns.
+- If it is long: first 20 turns + most recent 200 turns.
+- Plain text only. No HTML, no tool dumps, no chain-of-thought hidden traces.
+- source is chatgpt, claude, gemini, grok, copilot, or other.
+"""
+
 
 @dataclass
 class Turn:
@@ -139,6 +166,13 @@ def absorb(agi: "AGI", filename: str, data: bytes) -> dict:
     }
 
 
+def strip_fences(text: str) -> str:
+    t = (text or "").strip()
+    t = re.sub(r"^```(?:json|JSON)?\s*", "", t)
+    t = re.sub(r"\s*```$", "", t)
+    return t.strip()
+
+
 def parse(filename: str, data: bytes) -> list[Thread]:
     name = (filename or "export").lower()
     if name.endswith(".zip") or data[:2] == b"PK":
@@ -196,15 +230,56 @@ def _from_zip(data: bytes) -> list[Thread]:
     return out
 
 
+def extract_json(text: str) -> str:
+    t = strip_fences(text)
+    try:
+        json.loads(t)
+        return t
+    except json.JSONDecodeError:
+        pass
+    i, j = t.find("{"), t.rfind("}")
+    if i >= 0 and j > i:
+        return t[i : j + 1]
+    i, j = t.find("["), t.rfind("]")
+    if i >= 0 and j > i:
+        return t[i : j + 1]
+    return t
+
+
 def _from_json(text: str) -> list[Thread]:
     try:
-        data = json.loads(text)
+        data = json.loads(extract_json(text))
     except json.JSONDecodeError:
         return []
     return _from_obj(data)
 
 
+def _from_cortex(data: dict) -> list[Thread]:
+    src = str(data.get("source") or "cortex")[:40]
+    raw_threads = data.get("threads")
+    out: list[Thread] = []
+    if isinstance(raw_threads, list):
+        for th in raw_threads:
+            if not isinstance(th, dict):
+                continue
+            title = str(th.get("title") or src)[:80]
+            turns = _messages_of(th.get("turns") or th.get("messages") or [])
+            if turns:
+                out.append(Thread(title, src, turns))
+    if not out and isinstance(data.get("turns"), list):
+        turns = _messages_of(data["turns"])
+        if turns:
+            out.append(Thread(str(data.get("title") or src)[:80], src, turns))
+    return out
+
+
 def _from_obj(data: Any) -> list[Thread]:
+    if isinstance(data, dict) and (
+        data.get("cortex_export") or data.get("cortex") or data.get("format") == "cortex"
+    ):
+        got = _from_cortex(data)
+        if got:
+            return got
     if isinstance(data, list):
         if not data:
             return []

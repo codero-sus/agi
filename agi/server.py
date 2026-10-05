@@ -108,6 +108,11 @@ class ResearchIn(BaseModel):
     topic: str = Field(..., min_length=2, max_length=400)
 
 
+class ImportJsonIn(BaseModel):
+    text: str = Field(..., min_length=2, max_length=2_000_000)
+    filename: str | None = None
+
+
 class AgentIn(BaseModel):
     name: str = Field(..., min_length=2, max_length=40)
     mission: str = Field("", max_length=400)
@@ -299,6 +304,23 @@ async def api_import(file: UploadFile = File(...)):
     from agi.mind.importers import absorb
 
     return absorb(get_agi(), file.filename or "export", raw)
+
+
+@app.get("/api/import/prompt")
+def api_import_prompt():
+    from agi.mind.importers import TRANSFER_PROMPT
+
+    return {"prompt": TRANSFER_PROMPT, "schema": "cortex_export"}
+
+
+@app.post("/api/import/json")
+def api_import_json(body: ImportJsonIn):
+    from agi.mind.importers import absorb
+
+    name = (body.filename or "paste.json")[:80]
+    if not name.endswith(".json"):
+        name = name + ".json"
+    return absorb(get_agi(), name, body.text.encode("utf-8"))
 
 
 @app.get("/api/docs")

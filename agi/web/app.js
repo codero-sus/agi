@@ -272,7 +272,7 @@ function handleSlash(t) {
     return true;
   }
   if (cmd === "import") {
-    $("import-file").click();
+    showTab("import");
     return true;
   }
   if (cmd === "compare" && arg) {
@@ -356,7 +356,46 @@ $("palette-btn").onclick = openPalette;
 $("toggle-chats").onclick = () => document.body.classList.toggle("show-chats");
 $("attach-btn").onclick = () => $("file").click();
 $("import-btn").onclick = () => $("import-file").click();
+if ($("import-btn2")) $("import-btn2").onclick = () => $("import-file").click();
 $("import-file").onchange = () => importChats($("import-file").files);
+if ($("xfer-copy")) {
+  $("xfer-copy").onclick = () => {
+    const t = $("xfer-prompt").textContent || "";
+    navigator.clipboard.writeText(t);
+    $("xfer-copy").textContent = "copied";
+    setTimeout(() => ($("xfer-copy").textContent = "copy prompt"), 900);
+  };
+}
+if ($("import-paste")) {
+  $("import-paste").onclick = async () => {
+    const text = ($("import-json").value || "").trim();
+    const st = $("import-status");
+    if (!text) {
+      if (st) st.textContent = "paste JSON first";
+      return;
+    }
+    if (st) st.textContent = "absorbing…";
+    const res = await fetch("/api/import/json", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, filename: "paste.json" }),
+    }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e) }));
+    if (res.ok) {
+      if (st) st.textContent = `kept ${res.turns} turns · ${res.threads} threads · training ${res.trained}`;
+      addThought("act", `imported paste: ${res.turns} turns (${(res.source || []).join(", ")})`);
+      $("import-json").value = "";
+      loadDocs();
+      loadSessions();
+      if (res.sessions && res.sessions[0]) openSession(res.sessions[0]);
+    } else if (st) st.textContent = res.error || "import failed";
+  };
+}
+fetch("/api/import/prompt")
+  .then((r) => r.json())
+  .then((d) => {
+    if ($("xfer-prompt") && d.prompt) $("xfer-prompt").textContent = d.prompt;
+  })
+  .catch(() => {});
 $("file").onchange = () => ingestFiles($("file").files);
 $("reload-model").onclick = () => fetch("/api/reload-model", { method: "POST" });
 $("opt-speak").onchange = (e) => { settings.speak = e.target.checked; saveSettings(); };
@@ -904,6 +943,7 @@ function openPalette() {
     { title: "Run agent", sub: "/run", run: () => { input.value = "run Operator: "; input.focus(); } },
     { title: "Crew", sub: "agents", run: () => { showTab("agents"); loadAgents(); } },
     { title: "Import chats", sub: "WhatsApp / ChatGPT / Claude", run: () => $("import-file").click() },
+    { title: "Transfer prompt", sub: "import tab", run: () => showTab("import") },
     { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
