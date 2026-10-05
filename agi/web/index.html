@@ -106,6 +106,7 @@
           <button type="button" data-tab="agents">crew</button>
           <button type="button" data-tab="memory">mem</button>
           <button type="button" data-tab="vault">vault</button>
+          <button type="button" data-tab="import">import</button>
           <button type="button" data-tab="mind">mind</button>
         </div>
         <div class="tab-body on" id="tab-think">
@@ -160,6 +161,21 @@
           <button type="button" id="import-btn" class="ghost sm">import chats</button>
           <p class="lede">WhatsApp .txt/.zip, ChatGPT conversations.json, Claude, Telegram result.json, JSONL.</p>
           <div id="vault-list" class="facts"></div>
+        </div>
+        <div class="tab-body" id="tab-import">
+          <h2>Import ☠️</h2>
+          <p class="lede">Paste this prompt into ChatGPT, Claude, Gemini, Grok — any model. It will dump JSON. Paste that JSON below. CORTEX remembers the turns and trains on them.</p>
+          <div class="art-bar">
+            <span id="xfer-label">transfer prompt</span>
+            <button type="button" id="xfer-copy" class="ghost sm">copy prompt</button>
+          </div>
+          <pre id="xfer-prompt" class="prompt-box"></pre>
+          <textarea id="import-json" class="import-json" placeholder='Paste JSON here — { "cortex_export": 1, "threads": [ … ] }'></textarea>
+          <div class="art-bar">
+            <button type="button" id="import-paste" class="ghost sm">absorb JSON</button>
+            <button type="button" id="import-btn2" class="ghost sm">or pick a file</button>
+          </div>
+          <p class="lede" id="import-status"></p>
         </div>
         <div class="tab-body" id="tab-mind">
           <h2>Core</h2>

@@ -68,6 +68,15 @@ Drop an export onto the desk. CORTEX parses it, remembers the turns, opens a thr
 
 `POST /api/import` or the vault tab **import chats**. Caps: 25MB, 5000 turns. Private URLs stay blocked; this is local-only.
 
+## Steal your own context (v0.9)
+
+The **import** tab has a prompt you paste into any other model. It replies with `cortex_export` JSON. Paste that JSON back. CORTEX absorbs it.
+
+```
+GET  /api/import/prompt
+POST /api/import/json   { "text": "{ ... cortex_export ... }" }
+```
+
 ## Agents you can create (v0.7)
 
 Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:
