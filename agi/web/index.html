@@ -107,6 +107,7 @@
           <button type="button" data-tab="memory">mem</button>
           <button type="button" data-tab="vault">vault</button>
           <button type="button" data-tab="import">import</button>
+          <button type="button" data-tab="hosts">hosts</button>
           <button type="button" data-tab="mind">mind</button>
         </div>
         <div class="tab-body on" id="tab-think">
@@ -176,6 +177,34 @@
             <button type="button" id="import-btn2" class="ghost sm">or pick a file</button>
           </div>
           <p class="lede" id="import-status"></p>
+        </div>
+        <div class="tab-body" id="tab-hosts">
+          <h2>Mouths</h2>
+          <p class="lede">CORTEX is the mind. These only speak. Local CortexGPT still trains. Keys never leave this process. OpenRouter is https://openrouter.ai only; Ollama and LLMHoster may be localhost or LAN.</p>
+          <div id="host-picks" class="host-picks"></div>
+          <div class="host-card">
+            <h3>Ollama</h3>
+            <input id="ollama-url" class="find" placeholder="http://127.0.0.1:11434" />
+            <select id="ollama-model" class="find"></select>
+          </div>
+          <div class="host-card">
+            <h3>Cortex LLMHoster</h3>
+            <input id="hoster-url" class="find" placeholder="http://127.0.0.1:8624" />
+            <select id="hoster-model" class="find"></select>
+            <input id="hoster-key" class="find" type="password" autocomplete="off" placeholder="CORTEX_API_KEY (optional)" />
+          </div>
+          <div class="host-card">
+            <h3>OpenRouter</h3>
+            <p class="lede">Fixed to https://openrouter.ai/api/v1</p>
+            <input id="or-model" class="find" placeholder="openrouter/auto" />
+            <select id="or-model-sel" class="find" hidden></select>
+            <input id="or-key" class="find" type="password" autocomplete="off" placeholder="OPENROUTER_API_KEY" />
+          </div>
+          <div class="art-bar">
+            <button type="button" id="host-probe" class="ghost sm">probe</button>
+            <button type="button" id="host-save" class="ghost sm">use this mouth</button>
+          </div>
+          <p class="lede" id="host-status"></p>
         </div>
         <div class="tab-body" id="tab-mind">
           <h2>Core</h2>

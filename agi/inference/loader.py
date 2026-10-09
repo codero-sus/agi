@@ -53,7 +53,9 @@ class ModelEngine:
         ensure_dirs()
         self.cortex = CortexGPT()
         self.external = None
+        self.remote = None
         self.info = EngineInfo("bootstrap", "cortex-gpt", True, {"params": self.cortex.param_count()})
+        self._disk_info = self.info
         self.lock = threading.Lock()
         self.stop = threading.Event()
         self.trainer = BackgroundTrainer(self)
@@ -78,10 +80,24 @@ class ModelEngine:
                 "model/model.safetensors as it trains.",
             },
         )
+        self._disk_info = self.info
 
     def reload(self) -> EngineInfo:
         self.external = None
+        self.remote = None
         self._discover()
+        return self.info
+
+    def bind_remote(self, remote) -> EngineInfo:
+        """Attach an OpenAI-compatible mouth. None restores the local core."""
+        self.remote = remote
+        if remote is None:
+            if self._disk_info is not None:
+                self.info = self._disk_info
+            return self.info
+        label = remote.model or remote.kind
+        detail = {**self._disk_info.detail, "remote": remote.kind, "remote_model": remote.model, "remote_url": remote.base}
+        self.info = EngineInfo(remote.kind, f"{remote.kind}:{label}", True, detail)
         return self.info
 
     def _load_gguf(self, path: Path) -> None:
@@ -90,6 +106,7 @@ class ModelEngine:
             summary = meta.summary()
         except Exception as e:
             self.info = EngineInfo("gguf", "unreadable", False, warning=str(e))
+            self._disk_info = self.info
             return
         try:
             self.external = LlamaCppEngine(path, meta)
@@ -105,6 +122,7 @@ class ModelEngine:
             )
         except Exception as e:
             self.info = EngineInfo("gguf", "llama.cpp", False, summary, warning=str(e))
+        self._disk_info = self.info
 
     def _load_safetensors(self, path: Path) -> None:
         kind, runner, info = try_load_external_safetensors(path)
@@ -123,15 +141,18 @@ class ModelEngine:
                         "architecture": "cortex-gpt",
                     },
                 )
+                self._disk_info = self.info
                 return
         if runner is not None and kind in ("llama", "gpt2"):
             self.external = runner
             self.info = EngineInfo("safetensors", f"numpy-{kind}", True, info)
+            self._disk_info = self.info
             return
         loaded = CortexGPT.load(path)
         if loaded is not None:
             self.cortex = loaded
             self.info = EngineInfo("safetensors", "cortex-gpt", True, {**info, "params": self.cortex.param_count()})
+            self._disk_info = self.info
             return
         self.info = EngineInfo(
             "safetensors",
@@ -142,13 +163,17 @@ class ModelEngine:
         )
         self.info.ready = True
         self.info.backend = "cortex-gpt (fallback)"
+        self._disk_info = self.info
 
     def has_external_lm(self) -> bool:
-        return self.external is not None
+        return self.remote is not None or self.external is not None
 
     def generate(self, prompt: str, max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> str:
         self.stop.clear()
         with self.lock:
+            remote = self.remote
+            if remote is not None:
+                return remote.generate(prompt, max_new=max_new, temperature=temperature)
             if self.external is not None:
                 try:
                     return self.external.generate(prompt, max_new=max_new, temperature=temperature, top_k=TOP_K)
@@ -164,6 +189,10 @@ class ModelEngine:
             )
 
     def stream(self, prompt: str, max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> Iterator[str]:
+        remote = self.remote
+        if remote is not None:
+            yield from remote.stream(prompt, max_new=max_new, temperature=temperature)
+            return
         ext = self.external
         if ext is not None and hasattr(ext, "stream"):
             yield from ext.stream(prompt, max_new=max_new, temperature=temperature)

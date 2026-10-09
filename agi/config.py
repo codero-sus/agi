@@ -50,6 +50,12 @@ MAX_NUMPY_BYTES = 1_600_000_000
 
 MEMORY_INDEX_CAP = 2000
 
+# Optional speech backends (OpenAI-compatible). CORTEX stays the mind.
+# AGI_LLM=local|ollama|hoster|openrouter
+# AGI_OLLAMA_URL (default http://127.0.0.1:11434), AGI_OLLAMA_MODEL
+# AGI_HOSTER_URL (default http://127.0.0.1:8624), AGI_HOSTER_MODEL, AGI_HOSTER_KEY / CORTEX_API_KEY
+# OPENROUTER_API_KEY / AGI_OPENROUTER_KEY, AGI_OPENROUTER_MODEL (OpenRouter is https://openrouter.ai only)
+
 
 def ensure_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

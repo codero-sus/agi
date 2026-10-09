@@ -43,7 +43,7 @@ def classify(text: str) -> str:
         return "task"
     if re.search(r"\b(who are you|what are you|your name|about yourself|what is cortex)\b", t):
         return "identity"
-    if re.search(r"\b(how do you work|architecture|your (brain|mind|model)|safetensors|gguf)\b", t):
+    if re.search(r"\b(how do you work|architecture|your (brain|mind|model)|safetensors|gguf|ollama|openrouter|hoster)\b", t):
         return "architecture"
     if re.search(r"\b(improve yourself|run a cycle|self[- ]improve|train now|evolve)\b", t):
         return "improve"
@@ -411,7 +411,9 @@ class Cognition:
             "hold competing hypotheses, critique, decide.\n"
             "3. **Remember** with a numpy vector index over SQLite episodes.\n"
             "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
-            "5. **Teach** me with `learn this: Title — body` and I persist an article.\n\n"
+            "5. **Teach** me with `learn this: Title — body` and I persist an article.\n"
+            "6. **Speak** through the local core, or an optional mouth: Ollama, Cortex LLMHoster, OpenRouter. "
+            "Those are OpenAI-compatible chat backends. I stay the mind; they do not train me.\n\n"
             f"Loader: source={info.get('source')} backend={info.get('backend')} "
             f"params={info.get('params') or neural.get('params')}. "
             f"Neural steps={neural.get('steps')} last loss={neural.get('last_loss')}. "
