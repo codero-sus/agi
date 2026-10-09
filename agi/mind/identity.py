@@ -6,6 +6,7 @@ import json
 import time
 from pathlib import Path
 
+from agi import __version__
 from agi.config import DATA_DIR
 
 DEFAULT_PRINCIPLES = [
@@ -35,7 +36,7 @@ class Identity:
             "name": "CORTEX",
             "species": "artificial general intelligence (growing)",
             "created": time.time(),
-            "version": "0.9.0",
+            "version": __version__,
             "constitution_version": 1,
             "principles": list(DEFAULT_PRINCIPLES),
             "traits": dict(DEFAULT_TRAITS),
@@ -58,6 +59,7 @@ class Identity:
                 self.data.update(saved)
             except Exception:
                 pass
+        self.data["version"] = __version__
 
     def save(self) -> None:
         self.path.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")

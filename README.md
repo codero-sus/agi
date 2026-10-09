@@ -77,6 +77,27 @@ GET  /api/import/prompt
 POST /api/import/json   { "text": "{ ... cortex_export ... }" }
 ```
 
+## Mouths (v0.10)
+
+CORTEX stays the mind. Optional **OpenAI-compatible** backends only speak — they do not train, they do not own memory.
+
+| mouth | default | auth |
+|---|---|---|
+| local CortexGPT / gguf / safetensors | `model/` | none |
+| [Ollama](https://ollama.com) | `http://127.0.0.1:11434` | none |
+| [Cortex LLMHoster](https://github.com/codero-sus/Cortex_LLMHoster) | `http://127.0.0.1:8624` | `CORTEX_API_KEY` if set |
+| [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` only | `OPENROUTER_API_KEY` |
+
+Pick one in the **hosts** tab. Keys are stored in `data/hosts.json`, masked on `GET`, never logged.
+
+```
+GET  /api/hosts
+POST /api/hosts          { "active": "ollama", "ollama": { "url", "model" } }
+POST /api/hosts/probe
+```
+
+Env: `AGI_LLM=ollama|hoster|openrouter|local`, `AGI_OLLAMA_URL`, `AGI_HOSTER_URL`, `OPENROUTER_API_KEY`. Ollama and the hoster may be localhost or LAN; OpenRouter is pinned to `openrouter.ai` over HTTPS. Local weights still train.
+
 ## Agents you can create (v0.7)
 
 Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:
@@ -172,6 +193,8 @@ Persistent mind state is under `data/` (SQLite + identity + goals + taught artic
 - `POST /api/improve` — force an improvement cycle
 - `POST /v1/chat/completions` — OpenAI-compatible
 - `GET /v1/models`
+- `GET/POST /api/hosts` — attach Ollama / LLMHoster / OpenRouter as a mouth
+- `POST /api/hosts/probe`
 
 ## Architecture
 
@@ -180,6 +203,6 @@ user
   → custom server (FastAPI, gzip, worker-thread think)
     → cognition (understand → recall → plan → act → reflect)
       → numpy memory index / knowledge / tools / skills
-      → ModelEngine (GGUF | safetensors | CortexGPT + KV cache)
+      → ModelEngine (GGUF | safetensors | CortexGPT + optional Ollama/Hoster/OpenRouter mouth)
     → background trainer (Adam, dream, debounce checkpoint)
 ```

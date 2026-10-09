@@ -287,6 +287,31 @@ textarea:focus { border-color: var(--mint); }
   line-height: 1.4;
   margin: 6px 0 10px;
 }
+.host-picks { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.host-picks button {
+  background: #0a0d14;
+  border: 1px solid var(--line2);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 11px "IBM Plex Mono", monospace;
+  cursor: pointer;
+}
+.host-picks button.on { color: var(--mint); border-color: var(--mint); background: var(--mint-dim); }
+.host-card {
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.host-card h3 {
+  font: 11px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint);
+  margin-bottom: 6px;
+}
+.host-card .find { margin-bottom: 6px; }
 .import-json {
   width: 100%;
   min-height: 130px;

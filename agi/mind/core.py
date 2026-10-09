@@ -13,6 +13,7 @@ from agi.mind.goals import Goals
 from agi.mind.identity import Identity
 from agi.mind.agent import get_roster
 from agi.mind.desk import get_desk
+from agi.mind.hosts import get_hosts
 from agi.mind.knowledge import Knowledge
 from agi.mind.memory import Memory
 from agi.tools.builtin import ToolRegistry
@@ -21,6 +22,7 @@ from agi.tools.builtin import ToolRegistry
 class AGI:
     def __init__(self, engine: ModelEngine | None = None):
         self.engine = engine or load_engine()
+        get_hosts().bind(self.engine)
         self.identity = Identity()
         self.memory = Memory()
         self.knowledge = Knowledge()
@@ -137,6 +139,7 @@ class AGI:
                 "safetensors": SAFETENSORS_PATH.exists(),
                 "model_dir": str(MODEL_DIR),
             },
+            "hosts": get_hosts().snapshot(),
         }
 
 

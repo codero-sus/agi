@@ -30,6 +30,7 @@ from agi.config import HOST, PORT, WEB_DIR, ensure_dirs
 from agi.mind.agent import TOOL_NAMES, get_roster
 from agi.mind.core import get_agi
 from agi.mind.desk import get_desk
+from agi.mind.hosts import get_hosts
 from agi.mind.workspace import PROMPTS, get_workspace
 
 
@@ -111,6 +112,13 @@ class ResearchIn(BaseModel):
 class ImportJsonIn(BaseModel):
     text: str = Field(..., min_length=2, max_length=2_000_000)
     filename: str | None = None
+
+
+class HostsIn(BaseModel):
+    active: str | None = None
+    ollama: dict | None = None
+    hoster: dict | None = None
+    openrouter: dict | None = None
 
 
 class AgentIn(BaseModel):
@@ -233,8 +241,33 @@ def api_improve():
 @app.post("/api/reload-model")
 def api_reload():
     agi = get_agi()
-    info = agi.engine.reload()
-    return info.as_dict()
+    agi.engine.reload()
+    get_hosts().bind(agi.engine)
+    return agi.engine.info.as_dict()
+
+
+@app.get("/api/hosts")
+def api_hosts():
+    return get_hosts().snapshot()
+
+
+@app.post("/api/hosts")
+def api_hosts_set(body: HostsIn):
+    snap = get_hosts().patch(body.model_dump(exclude_none=True))
+    get_hosts().bind(get_agi().engine)
+    snap = get_hosts().snapshot()
+    snap["engine"] = get_agi().engine.info.as_dict()
+    return snap
+
+
+@app.post("/api/hosts/probe")
+def api_hosts_probe(body: HostsIn | None = None):
+    if body is not None:
+        payload = body.model_dump(exclude_none=True)
+        payload.pop("active", None)
+        if payload:
+            get_hosts().patch(payload)
+    return get_hosts().probe_all()
 
 
 @app.get("/api/prompts")

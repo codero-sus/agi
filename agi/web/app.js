@@ -275,6 +275,11 @@ function handleSlash(t) {
     showTab("import");
     return true;
   }
+  if (cmd === "hosts" || cmd === "ollama" || cmd === "openrouter") {
+    showTab("hosts");
+    loadHosts();
+    return true;
+  }
   if (cmd === "compare" && arg) {
     send("Compare " + arg);
     return true;
@@ -432,6 +437,7 @@ saveSettings();
 function showTab(name) {
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
   document.querySelectorAll(".tab-body").forEach((x) => x.classList.toggle("on", x.id === "tab-" + name));
+  if (name === "hosts") loadHosts();
 }
 document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => showTab(b.dataset.tab);
@@ -913,6 +919,126 @@ async function loadAgents() {
   }
 }
 
+let hostActive = "local";
+
+function fillSelect(sel, models, current) {
+  if (!sel) return;
+  sel.innerHTML = "";
+  const opts = [];
+  if (current) opts.push(current);
+  for (const m of models || []) if (m && !opts.includes(m)) opts.push(m);
+  if (!opts.length) opts.push("");
+  for (const m of opts) {
+    const o = document.createElement("option");
+    o.value = m;
+    o.textContent = m || "(pick after probe)";
+    sel.appendChild(o);
+  }
+  if (current) sel.value = current;
+}
+
+function renderHostPicks(active) {
+  hostActive = active || "local";
+  const box = $("host-picks");
+  if (!box) return;
+  box.innerHTML = "";
+  for (const k of ["local", "ollama", "hoster", "openrouter"]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = k;
+    if (k === hostActive) b.classList.add("on");
+    b.onclick = () => renderHostPicks(k);
+    box.appendChild(b);
+  }
+}
+
+function applyHostSnap(d) {
+  hostActive = d.active || "local";
+  renderHostPicks(hostActive);
+  const ol = d.ollama || {};
+  const ho = d.hoster || {};
+  const or = d.openrouter || {};
+  if ($("ollama-url")) $("ollama-url").value = ol.url || "";
+  fillSelect($("ollama-model"), ol.models || [], ol.model || "");
+  if ($("hoster-url")) $("hoster-url").value = ho.url || "";
+  fillSelect($("hoster-model"), ho.models || [], ho.model || "");
+  if ($("hoster-key")) {
+    $("hoster-key").value = "";
+    $("hoster-key").placeholder = ho.has_key ? `saved ${ho.key || "••••"}` : "CORTEX_API_KEY (optional)";
+  }
+  if ($("or-model")) $("or-model").value = or.model || "openrouter/auto";
+  if ($("or-key")) {
+    $("or-key").value = "";
+    $("or-key").placeholder = or.has_key ? `saved ${or.key || "••••"}` : "OPENROUTER_API_KEY";
+  }
+}
+
+function hostPayload(includeActive) {
+  const body = {
+    ollama: { url: ($("ollama-url") && $("ollama-url").value.trim()) || "", model: ($("ollama-model") && $("ollama-model").value) || "" },
+    hoster: { url: ($("hoster-url") && $("hoster-url").value.trim()) || "", model: ($("hoster-model") && $("hoster-model").value) || "" },
+    openrouter: { model: ($("or-model") && $("or-model").value.trim()) || "" },
+  };
+  const hk = $("hoster-key") && $("hoster-key").value.trim();
+  const ok = $("or-key") && $("or-key").value.trim();
+  if (hk) body.hoster.key = hk;
+  if (ok) body.openrouter.key = ok;
+  if (includeActive) body.active = hostActive;
+  return body;
+}
+
+async function loadHosts() {
+  const d = await fetch("/api/hosts").then((r) => r.json()).catch(() => null);
+  if (d) applyHostSnap(d);
+}
+
+if ($("host-probe")) {
+  $("host-probe").onclick = async () => {
+    const st = $("host-status");
+    if (st) st.textContent = "probing…";
+    const res = await fetch("/api/hosts/probe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(hostPayload(false)),
+    }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+    const bits = [];
+    for (const k of ["local", "ollama", "hoster", "openrouter"]) {
+      const p = res[k] || {};
+      bits.push(`${k}:${p.ok ? "ok" : "off"}${p.models && p.models.length ? " " + p.models.slice(0, 3).join(",") : ""}${p.error ? " " + p.error : ""}`);
+      if (k === "ollama") fillSelect($("ollama-model"), p.models || [], $("ollama-model").value);
+      if (k === "hoster") fillSelect($("hoster-model"), p.models || [], $("hoster-model").value);
+      if (k === "openrouter" && p.models && p.models.length) {
+        const sel = $("or-model-sel");
+        if (sel) {
+          sel.hidden = false;
+          fillSelect(sel, p.models, $("or-model").value);
+          sel.onchange = () => { $("or-model").value = sel.value; };
+        }
+      }
+    }
+    if (st) st.textContent = bits.join(" · ");
+  };
+}
+if ($("host-save")) {
+  $("host-save").onclick = async () => {
+    const st = $("host-status");
+    if (st) st.textContent = "binding…";
+    const res = await fetch("/api/hosts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(hostPayload(true)),
+    }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+    if (res.error) {
+      if (st) st.textContent = res.error;
+      return;
+    }
+    applyHostSnap(res);
+    if (st) st.textContent = `speaking through ${res.active || hostActive}`;
+    addThought("act", `mouth → ${res.active || hostActive}`);
+    fetch("/api/state").then((r) => r.json()).then(renderState).catch(() => {});
+  };
+}
+
 async function loadVault() {
   const d = await fetch("/api/vault").then((r) => r.json());
   const box = $("vault-list");
@@ -944,6 +1070,7 @@ function openPalette() {
     { title: "Crew", sub: "agents", run: () => { showTab("agents"); loadAgents(); } },
     { title: "Import chats", sub: "WhatsApp / ChatGPT / Claude", run: () => $("import-file").click() },
     { title: "Transfer prompt", sub: "import tab", run: () => showTab("import") },
+    { title: "Hosts / LLM mouths", sub: "Ollama · OpenRouter · LLMHoster", run: () => { showTab("hosts"); loadHosts(); } },
     { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
@@ -1078,6 +1205,7 @@ loadVault();
 loadDocs();
 loadTasks();
 loadAgents();
+loadHosts();
 
 $("doc-new").onclick = async () => {
   const title = $("doc-title").value.trim();
