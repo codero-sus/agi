@@ -110,6 +110,15 @@ POST /api/update          { "restart": true }
 
 Say `check for updates` or `update yourself`. `/update` in the composer.
 
+From the repo root:
+
+```bash
+./updater.sh          # macOS / Linux
+updater.bat           # Windows
+```
+
+Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `python -m agi` after it finishes.
+
 ## Agents you can create (v0.7)
 
 Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:
