@@ -2,7 +2,7 @@
 
 Priority:
   1. model/model.gguf          (llama.cpp if installed; metadata always)
-  2. model/model.safetensors   (external HF llama/gpt2, or CORTEX's own GPT)
+  2. model/model.safetensors   (external HF llama/gpt2, or Cortex AGI's own GPT)
   3. bootstrap CortexGPT       (trains online, writes model.safetensors)
 """
 
@@ -76,7 +76,7 @@ class ModelEngine:
                 "params": self.cortex.param_count(),
                 "steps": self.cortex.steps,
                 "note": "No model.gguf or model.safetensors found. "
-                "CORTEX is running its own neural core and will write "
+                "Cortex AGI is running its own neural core and will write "
                 "model/model.safetensors as it trains.",
             },
         )

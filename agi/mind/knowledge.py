@@ -23,14 +23,14 @@ ARTICLES: list[Article] = [
         "AGI",
         ("agi", "intelligence", "ai", "cortex"),
         "Artificial General Intelligence is a system that can learn, reason, and act across "
-        "domains rather than a single task. CORTEX approaches AGI as a loop: perceive, "
+        "domains rather than a single task. Cortex AGI approaches AGI as a loop: perceive, "
         "recall, plan, act, reflect, and rewrite itself. Capabilities compound when memory, "
         "skills, and a trainable neural core share the same lifetime.",
     ),
     Article(
         "Self-improvement",
         ("improve", "learning", "training", "skill"),
-        "Self-improvement here is not a slogan. After each turn CORTEX stores episodes, "
+        "Self-improvement here is not a slogan. After each turn Cortex AGI stores episodes, "
         "extracts facts, critiques its reply, and may write a reusable skill. Periodically it "
         "runs a self-eval battery, trains CortexGPT on its own traces, and evolves its constitution. "
         "Weights are written to model/model.safetensors. Training runs in a background thread "
@@ -84,7 +84,7 @@ ARTICLES: list[Article] = [
         ("training", "loss", "gradient", "backprop", "adam"),
         "Learning is reducing a loss. Backpropagation applies the chain rule through a computation "
         "graph. Adam keeps exponential moving averages of the gradient and its square so steps "
-        "adapt per-parameter. CORTEX trains CortexGPT this way and checkpoints to safetensors.",
+        "adapt per-parameter. Cortex AGI trains CortexGPT this way and checkpoints to safetensors.",
     ),
     Article(
         "Transformers",
@@ -97,14 +97,14 @@ ARTICLES: list[Article] = [
         "Language",
         ("language", "token", "meaning"),
         "Language models predict the next token. Meaning emerges when prediction is grounded in "
-        "memory, tools, and goals. CORTEX wraps a language model in a cognitive loop so that "
+        "memory, tools, and goals. Cortex AGI wraps a language model in a cognitive loop so that "
         "replies are planned, recalled, and then critiqued — not merely sampled.",
     ),
     Article(
         "Ethics of agency",
         ("ethics", "agency", "value"),
         "An agent that improves itself must keep its values intact while its skills grow. "
-        "CORTEX's constitution is versioned and only expands with lessons that survive critique. "
+        "Cortex AGI's constitution is versioned and only expands with lessons that survive critique. "
         "It prefers honesty, user autonomy, and reversible changes.",
     ),
     Article(
@@ -119,7 +119,7 @@ ARTICLES: list[Article] = [
         "Super-general intelligence is not a single lookup. It is a chain: restate the question, "
         "choose a strategy (causal, compare, first principles, plan), split into subquestions, "
         "retrieve evidence, hold competing hypotheses, attack the winner, then speak. "
-        "CORTEX runs this loop as System 2 and streams every step. Fast facts stay System 1.",
+        "Cortex AGI runs this loop as System 2 and streams every step. Fast facts stay System 1.",
     ),
     Article(
         "Time",

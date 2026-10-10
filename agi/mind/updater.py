@@ -1,4 +1,4 @@
-"""Self-update CORTEX from its GitHub origin.
+"""Self-update Cortex AGI from its GitHub origin.
 
 The mind stays on disk (`data/`, trained weights). This only fast-forwards
 source. Origin must be GitHub `codero-sus/agi` (or `AGI_UPDATE_REPO`).
@@ -133,7 +133,7 @@ def _github_head(branch: str) -> dict:
     req = Request(
         url,
         headers={
-            "User-Agent": f"CORTEX-AGI/{__version__}",
+            "User-Agent": f"Cortex-AGI/{__version__}",
             "Accept": "application/vnd.github+json",
         },
         method="GET",

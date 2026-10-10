@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from agi import __version__
+from agi import __name_pretty__, __version__
 from agi.config import HOST, PORT, WEB_DIR, ensure_dirs
 from agi.mind.agent import TOOL_NAMES, get_roster
 from agi.mind.core import get_agi
@@ -57,7 +57,7 @@ async def lifespan(_app: FastAPI):
 ensure_dirs()
 
 app = FastAPI(
-    title="CORTEX",
+    title="Cortex AGI",
     version=__version__,
     description="Self-improving AGI server",
     lifespan=lifespan,
@@ -175,7 +175,7 @@ def index():
 @app.get("/health")
 def health():
     loc = local_update()
-    return {"ok": True, "name": "CORTEX", "version": __version__, "sha": loc.get("sha") or None, "branch": loc.get("branch")}
+    return {"ok": True, "name": __name_pretty__, "version": __version__, "sha": loc.get("sha") or None, "branch": loc.get("branch")}
 
 
 @app.get("/api/state")

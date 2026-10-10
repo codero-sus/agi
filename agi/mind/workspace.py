@@ -25,7 +25,7 @@ PROMPTS = [
     {"id": "note", "title": "Note", "body": "Note: "},
     {"id": "todo", "title": "Todo", "body": "Todo: "},
     {"id": "review", "title": "Review code", "body": "Review this code. Bugs, complexity, tests:\n\n```\n\n```"},
-    {"id": "teach", "title": "Teach CORTEX", "body": "Learn this: Title — "},
+    {"id": "teach", "title": "Teach Cortex AGI", "body": "Learn this: Title — "},
     {"id": "improve", "title": "Self-improve", "body": "Improve yourself"},
 ]
 

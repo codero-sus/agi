@@ -1,4 +1,4 @@
-"""Which mouth CORTEX speaks through: local core, Ollama, OpenRouter, LLMHoster."""
+"""Which mouth Cortex AGI speaks through: local core, Ollama, OpenRouter, LLMHoster."""
 
 from __future__ import annotations
 

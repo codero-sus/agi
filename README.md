@@ -1,13 +1,13 @@
-# CORTEX
+# Cortex AGI
 
 A local **AGI** with a custom inference server, a cognitive loop, and self-improvement that actually writes to disk.
 
-CORTEX is not a wrapper around OpenAI. It loads weights from this repo:
+Cortex AGI is not a wrapper around OpenAI. It loads weights from this repo:
 
 | file | backend |
 |---|---|
 | `model/model.gguf` | llama.cpp (`llama-cpp-python`) |
-| `model/model.safetensors` | numpy Llama / GPT-2, or CORTEX's own GPT |
+| `model/model.safetensors` | numpy Llama / GPT-2, or Cortex AGI's own GPT |
 
 If neither file is present, it boots **CortexGPT** (a numpy transformer), trains on every conversation, and checkpoints itself to `model/model.safetensors`.
 
@@ -56,7 +56,7 @@ The chain streams live in the control plane and is attached to every reply. Fast
 
 ## Import your other lives (v0.8)
 
-Drop an export onto the desk. CORTEX parses it, remembers the turns, opens a thread, and **trains the neural core** on the dialogue.
+Drop an export onto the desk. Cortex AGI parses it, remembers the turns, opens a thread, and **trains the neural core** on the dialogue.
 
 | export | how |
 |---|---|
@@ -70,7 +70,7 @@ Drop an export onto the desk. CORTEX parses it, remembers the turns, opens a thr
 
 ## Steal your own context (v0.9)
 
-The **import** tab has a prompt you paste into any other model. It replies with `cortex_export` JSON. Paste that JSON back. CORTEX absorbs it.
+The **import** tab has a prompt you paste into any other model. It replies with `cortex_export` JSON. Paste that JSON back. Cortex AGI absorbs it.
 
 ```
 GET  /api/import/prompt
@@ -79,7 +79,7 @@ POST /api/import/json   { "text": "{ ... cortex_export ... }" }
 
 ## Mouths (v0.10)
 
-CORTEX stays the mind. Optional **OpenAI-compatible** backends only speak — they do not train, they do not own memory.
+Cortex AGI stays the mind. Optional **OpenAI-compatible** backends only speak — they do not train, they do not own memory.
 
 | mouth | default | auth |
 |---|---|---|
@@ -130,7 +130,7 @@ Pick an agent in the composer or the crew tab. Right-click to retire one.
 
 ## Agent & compare (v0.6)
 
-Odysseus's headline is **agents + compare + cookbook**. Those are wrappers. CORTEX owns them:
+Odysseus's headline is **agents + compare + cookbook**. Those are wrappers. Cortex AGI owns them:
 
 - **`do:`** — a bounded tool loop (knowledge, vault, memory, math, public URLs). No bash, no MCP, no silent root. The trace is a document that trains the core.
 - **`compare A and B`** — one chain, two characterizations, a split. Not five vendor APIs side-by-side.
@@ -141,9 +141,9 @@ Odysseus's headline is **agents + compare + cookbook**. Those are wrappers. CORT
 
 [Odysseus](https://github.com/odysseus-dev/odysseus) is a self-hosted **suite**: chat wrapping Ollama, a research agent wrapping the web, a document app, email, calendar, 270-model cookbook. Useful. Not an AGI.
 
-CORTEX is one mind that does the jobs people actually open Odysseus for:
+Cortex AGI is one mind that does the jobs people actually open Odysseus for:
 
-| Odysseus | CORTEX |
+| Odysseus | Cortex AGI |
 |---|---|
 | Wraps Ollama / OpenAI / vLLM | **Is** the model (`model.gguf` / `model.safetensors` / CortexGPT) |
 | Deep research as a separate agent | System-2 research → cited report → **taught back into weights** |
@@ -157,7 +157,7 @@ Say `research this: photosynthesis`, `note: …`, `todo: …`. Reports land in *
 
 ## Workspace (v0.4) — built to beat Open WebUI
 
-Open WebUI is a wrapper around someone else's model. CORTEX is the model, the mind, and the UI:
+Open WebUI is a wrapper around someone else's model. Cortex AGI is the model, the mind, and the UI:
 
 - **Threads** with search, pin-worthy titles, JSON export
 - **File vault** — drop `.md/.py/.json` onto the page; they become knowledge
@@ -179,7 +179,7 @@ Open WebUI is a wrapper around someone else's model. CORTEX is the model, the mi
 
 ## What “self-improvement” means here
 
-After every turn CORTEX:
+After every turn Cortex AGI:
 
 1. Stores **episodic memory** (the conversation)
 2. Extracts **semantic facts** (`user name Ada`)

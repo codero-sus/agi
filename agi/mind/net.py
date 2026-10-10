@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
-UA = "CORTEX-AGI/0.5 (local research; +https://github.com/codero-sus/agi)"
+UA = "Cortex-AGI/0.11 (local research; +https://github.com/codero-sus/agi)"
 TIMEOUT = 8
 MAX_BYTES = 180_000
 WIKI_API = "https://en.wikipedia.org/w/api.php"

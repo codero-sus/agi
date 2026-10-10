@@ -1,7 +1,7 @@
 """Named agents the mind can spawn and run.
 
 Odysseus wires MCP and bash onto someone else's model.
-CORTEX agents are slices of one mind: a mission, a tool whitelist,
+Cortex AGI agents are slices of one mind: a mission, a tool whitelist,
 a trace that trains the core. No shell. No root.
 """
 
@@ -373,7 +373,7 @@ def run_agent(agi: "AGI", spec: AgentSpec, goal: str, raw: str = "") -> AgentRun
             "## Trace",
             "\n".join(f"- {f}" for f in findings),
             "",
-            f"_Run #{spec.runs + 1} by {spec.name}. The trace trains CORTEX._",
+            f"_Run #{spec.runs + 1} by {spec.name}. The trace trains Cortex AGI._",
             "",
         ]
     )
