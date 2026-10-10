@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fast-forward Cortex AGI source from GitHub. data/ and trained weights stay.
-# Python comes from python.env (PYTHON=...).
+# Interpreter is python.env in the project root (PYTHON=path, or a bare path).
 set -euo pipefail
 cd "$(dirname "$0")"
 export GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0
@@ -8,7 +8,7 @@ REPO="${AGI_UPDATE_REPO:-codero-sus/agi}"
 
 die() { echo "updater: $*" >&2; exit 1; }
 
-read_python() {
+read_python_env() {
   local file="$1" line val
   [ -f "$file" ] || return 1
   while IFS= read -r line || [ -n "$line" ]; do
@@ -17,36 +17,26 @@ read_python() {
       ''|\#*) continue ;;
     esac
     case "$line" in
-      PYTHON=*|python=*)
-        val="${line#*=}"
-        val="${val#\"}"
-        val="${val%\"}"
-        val="${val#\'}"
-        val="${val%\'}"
-        val="${val#"${val%%[![:space:]]*}"}"
-        val="${val%"${val##*[![:space:]]}"}"
-        if [ -n "$val" ]; then
-          PYTHON="$val"
-          return 0
-        fi
-        ;;
+      PYTHON=*|python=*) val="${line#*=}" ;;
+      *) val="$line" ;;
     esac
+    val="${val#\"}"
+    val="${val%\"}"
+    val="${val#\'}"
+    val="${val%\'}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    val="${val%"${val##*[![:space:]]}"}"
+    if [ -n "$val" ]; then
+      PYTHON="$val"
+      return 0
+    fi
   done < "$file"
   return 1
 }
 
-PYTHON="${PYTHON:-}"
+PYTHON="${AGI_PYTHON:-${PYTHON:-}}"
 if [ -z "$PYTHON" ]; then
-  read_python python.env || read_python python.env.example || true
-fi
-if [ -z "${PYTHON:-}" ]; then
-  if [ -x .venv/bin/python ]; then
-    PYTHON=".venv/bin/python"
-  elif [ -x .venv/Scripts/python.exe ]; then
-    PYTHON=".venv/Scripts/python.exe"
-  else
-    PYTHON="python"
-  fi
+  read_python_env python.env || die "put the Python path in python.env at the project root"
 fi
 
 command -v git >/dev/null 2>&1 || die "git not installed"
@@ -66,7 +56,7 @@ fi
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" != "HEAD" ] || die "detached HEAD — checkout a branch"
 
-echo "python: $PYTHON"
+echo "python: $PYTHON  (python.env)"
 echo "fetching origin/${branch}…"
 git fetch --depth 50 origin "$branch"
 before="$(git rev-parse --short HEAD)"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 # Keep BLAS from oversubscribing the 2-core box.
@@ -10,6 +11,7 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "2")
 
 ROOT = Path(__file__).resolve().parent.parent
+PYTHON_ENV_PATH = ROOT / "python.env"
 MODEL_DIR = Path(os.environ.get("AGI_MODEL_DIR", ROOT / "model"))
 DATA_DIR = Path(os.environ.get("AGI_DATA_DIR", ROOT / "data"))
 SKILLS_DIR = Path(os.environ.get("AGI_SKILLS_DIR", ROOT / "skills"))
@@ -56,6 +58,32 @@ MEMORY_INDEX_CAP = 2000
 # AGI_HOSTER_URL (default http://127.0.0.1:8624), AGI_HOSTER_MODEL, AGI_HOSTER_KEY / CORTEX_API_KEY
 # OPENROUTER_API_KEY / AGI_OPENROUTER_KEY, AGI_OPENROUTER_MODEL (OpenRouter is https://openrouter.ai only)
 # AGI_UPDATE_REPO (default codero-sus/agi), AGI_UPDATE_RESTART=0 to skip process restart after apply
+
+
+def python_executable() -> str:
+    """Interpreter recorded in python.env at the project root."""
+    override = (os.environ.get("AGI_PYTHON") or "").strip()
+    if override:
+        return override
+    path = PYTHON_ENV_PATH
+    if path.is_file():
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except OSError:
+            text = ""
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.lower().startswith("python="):
+                line = line.split("=", 1)[1].strip().strip('"').strip("'")
+            if not line:
+                continue
+            p = Path(line)
+            if not p.is_absolute():
+                p = ROOT / p
+            return str(p)
+    return sys.executable
 
 
 def ensure_dirs() -> None:
