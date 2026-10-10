@@ -1,11 +1,53 @@
 #!/usr/bin/env bash
 # Fast-forward Cortex AGI source from GitHub. data/ and trained weights stay.
+# Python comes from python.env (PYTHON=...).
 set -euo pipefail
 cd "$(dirname "$0")"
 export GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0
 REPO="${AGI_UPDATE_REPO:-codero-sus/agi}"
 
 die() { echo "updater: $*" >&2; exit 1; }
+
+read_python() {
+  local file="$1" line val
+  [ -f "$file" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in
+      ''|\#*) continue ;;
+    esac
+    case "$line" in
+      PYTHON=*|python=*)
+        val="${line#*=}"
+        val="${val#\"}"
+        val="${val%\"}"
+        val="${val#\'}"
+        val="${val%\'}"
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+        if [ -n "$val" ]; then
+          PYTHON="$val"
+          return 0
+        fi
+        ;;
+    esac
+  done < "$file"
+  return 1
+}
+
+PYTHON="${PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+  read_python python.env || read_python python.env.example || true
+fi
+if [ -z "${PYTHON:-}" ]; then
+  if [ -x .venv/bin/python ]; then
+    PYTHON=".venv/bin/python"
+  elif [ -x .venv/Scripts/python.exe ]; then
+    PYTHON=".venv/Scripts/python.exe"
+  else
+    PYTHON="python"
+  fi
+fi
 
 command -v git >/dev/null 2>&1 || die "git not installed"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git checkout"
@@ -24,6 +66,7 @@ fi
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" != "HEAD" ] || die "detached HEAD — checkout a branch"
 
+echo "python: $PYTHON"
 echo "fetching origin/${branch}…"
 git fetch --depth 50 origin "$branch"
 before="$(git rev-parse --short HEAD)"
@@ -35,15 +78,10 @@ git merge --ff-only "origin/${branch}"
 after="$(git rev-parse --short HEAD)"
 echo "source ${before} → ${after}"
 
-pip=""
-if [ -x .venv/bin/pip ]; then
-  pip=".venv/bin/pip"
-elif [ -x .venv/Scripts/pip.exe ]; then
-  pip=".venv/Scripts/pip.exe"
-fi
-if [ -n "$pip" ] && [ -f requirements.txt ]; then
-  echo "syncing requirements…"
-  "$pip" install -r requirements.txt -q --disable-pip-version-check || echo "updater: pip failed (source is updated; install deps yourself)" >&2
+if [ -f requirements.txt ]; then
+  echo "syncing requirements with $PYTHON …"
+  "$PYTHON" -m pip install -r requirements.txt -q --disable-pip-version-check \
+    || echo "updater: pip failed (source is updated; install deps yourself)" >&2
 fi
 
-echo "Cortex AGI updated. Restart: python -m agi"
+echo "Cortex AGI updated. Restart: $PYTHON -m agi"

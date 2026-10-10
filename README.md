@@ -117,7 +117,7 @@ From the repo root:
 updater.bat           # Windows
 ```
 
-Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `python -m agi` after it finishes.
+Python is read from **`python.env`** (`PYTHON=...`). Point it at your venv. Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `"$PYTHON" -m agi` after it finishes.
 
 ## Agents you can create (v0.7)
 
