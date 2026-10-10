@@ -31,6 +31,7 @@ from agi.mind.agent import TOOL_NAMES, get_roster
 from agi.mind.core import get_agi
 from agi.mind.desk import get_desk
 from agi.mind.hosts import get_hosts
+from agi.mind.updater import apply as apply_update, check as check_update, local as local_update, status as update_status
 from agi.mind.workspace import PROMPTS, get_workspace
 
 
@@ -121,6 +122,10 @@ class HostsIn(BaseModel):
     openrouter: dict | None = None
 
 
+class UpdateIn(BaseModel):
+    restart: bool = True
+
+
 class AgentIn(BaseModel):
     name: str = Field(..., min_length=2, max_length=40)
     mission: str = Field("", max_length=400)
@@ -169,7 +174,8 @@ def index():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "name": "CORTEX", "version": __version__}
+    loc = local_update()
+    return {"ok": True, "name": "CORTEX", "version": __version__, "sha": loc.get("sha") or None, "branch": loc.get("branch")}
 
 
 @app.get("/api/state")
@@ -268,6 +274,22 @@ def api_hosts_probe(body: HostsIn | None = None):
         if payload:
             get_hosts().patch(payload)
     return get_hosts().probe_all()
+
+
+@app.get("/api/update")
+def api_update_status():
+    return update_status()
+
+
+@app.post("/api/update/check")
+def api_update_check():
+    return check_update(force=True)
+
+
+@app.post("/api/update")
+def api_update_apply(body: UpdateIn | None = None):
+    restart = True if body is None else body.restart
+    return apply_update(restart=restart)
 
 
 @app.get("/api/prompts")
