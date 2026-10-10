@@ -222,7 +222,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /stop /focus /agents", true);
+    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /update /stop /focus /agents", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -230,6 +230,10 @@ function handleSlash(t) {
   if (cmd === "export") { exportThread(); return true; }
   if (cmd === "improve") {
     ws.send(JSON.stringify({ type: "improve", message: "improve", session_id: sessionId }));
+    return true;
+  }
+  if (cmd === "update" || cmd === "upgrade") {
+    send(arg ? `update ${arg}` : "check for updates");
     return true;
   }
   if (cmd === "stop") {
@@ -403,6 +407,63 @@ fetch("/api/import/prompt")
   .catch(() => {});
 $("file").onchange = () => ingestFiles($("file").files);
 $("reload-model").onclick = () => fetch("/api/reload-model", { method: "POST" });
+$("settings-btn").onclick = () => {
+  $("settings").hidden = false;
+  loadUpdate(false);
+};
+
+function renderUpdate(d) {
+  const line = (() => {
+    if (!d) return "update status unknown";
+    if (d.error && !d.available) return d.error;
+    const ver = d.version ? `v${d.version}` : "";
+    const sha = d.sha || "—";
+    const br = d.branch || "";
+    if (d.applied) return `applied → ${ver} ${sha}${d.restarting ? " · restarting…" : ""}`;
+    if (d.available) return `${ver} ${sha} · ${d.behind} behind origin ${d.remote_sha || ""} · ${d.remote_message || "ready"}`;
+    if (d.ahead) return `${ver} ${sha} on ${br} · ${d.ahead} ahead of origin`;
+    return `${ver} ${sha} on ${br} · current`;
+  })();
+  ["upd-status", "upd-status-set"].forEach((id) => {
+    if ($(id)) $(id).textContent = line;
+  });
+  if ($("ver-pill") && d && d.version) {
+    $("ver-pill").textContent = `v${d.version}`;
+    $("ver-pill").className = "pill" + (d.available ? " warn" : " dim");
+  }
+}
+
+async function loadUpdate(force) {
+  const url = force ? "/api/update/check" : "/api/update";
+  const method = force ? "POST" : "GET";
+  const d = await fetch(url, { method }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+  renderUpdate(d);
+  return d;
+}
+
+async function applyUpdate() {
+  ["upd-status", "upd-status-set"].forEach((id) => {
+    if ($(id)) $(id).textContent = "applying…";
+  });
+  const d = await fetch("/api/update", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ restart: true }),
+  }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+  renderUpdate(d);
+  if (d.applied) addThought("act", `updated to ${d.sha || "HEAD"}${d.restarting ? " · restarting" : ""}`);
+  else if (d.error) addThought("error", d.error);
+  if (d.restarting) {
+    setTimeout(() => location.reload(), 1800);
+  }
+}
+
+["upd-check", "upd-check-set"].forEach((id) => {
+  if ($(id)) $(id).onclick = () => loadUpdate(true);
+});
+["upd-apply", "upd-apply-set"].forEach((id) => {
+  if ($(id)) $(id).onclick = () => applyUpdate();
+});
 $("opt-speak").onchange = (e) => { settings.speak = e.target.checked; saveSettings(); };
 $("opt-enter").onchange = (e) => { settings.enter = e.target.checked; saveSettings(); };
 $("opt-chain").onchange = (e) => { settings.chain = e.target.checked; saveSettings(); };
@@ -438,6 +499,7 @@ function showTab(name) {
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
   document.querySelectorAll(".tab-body").forEach((x) => x.classList.toggle("on", x.id === "tab-" + name));
   if (name === "hosts") loadHosts();
+  if (name === "mind") loadUpdate(false);
 }
 document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => showTab(b.dataset.tab);
@@ -564,6 +626,7 @@ function renderState(s) {
       coreKv.appendChild(li);
     }
   }
+  if ($("ver-pill")) $("ver-pill").textContent = `v${ident.version || "?"}`;
   $("src-pill").textContent = `${engine.source || "?"} · ${engine.backend || "?"}`;
   $("src-pill").className = "pill" + (engine.warning ? " warn" : "");
   $("turn-pill").textContent = `turns ${ident.turns ?? 0}`;
@@ -1076,6 +1139,8 @@ function openPalette() {
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
     { title: "Focus mode", sub: "Ctrl+.", run: () => { settings.focus = !settings.focus; saveSettings(); } },
     { title: "Improve CORTEX", sub: "/improve", run: () => handleSlash("/improve") },
+    { title: "Check for updates", sub: "/update", run: () => { showTab("mind"); loadUpdate(true); } },
+    { title: "Apply update", sub: "git ff-only", run: () => applyUpdate() },
     { title: "Export thread", sub: "JSON", run: exportThread },
     { title: "Reload model", sub: "model/", run: () => fetch("/api/reload-model", { method: "POST" }) },
     ...prompts.map((p) => ({
@@ -1206,6 +1271,7 @@ loadDocs();
 loadTasks();
 loadAgents();
 loadHosts();
+loadUpdate(false);
 
 $("doc-new").onclick = async () => {
   const title = $("doc-title").value.trim();

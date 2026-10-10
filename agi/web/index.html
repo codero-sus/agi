@@ -49,6 +49,7 @@
       </div>
       <div class="vitals" id="vitals">
         <span class="pill dim" id="conn-pill">offline</span>
+        <span class="pill dim" id="ver-pill">v—</span>
         <span class="pill" id="src-pill">bootstrap</span>
         <span class="pill dim" id="turn-pill">turns 0</span>
         <span class="pill dim" id="cycle-pill">cycles 0</span>
@@ -221,6 +222,12 @@
           <div id="skills" class="skills"></div>
           <canvas id="chart" width="360" height="90"></canvas>
           <button id="cycle-btn" type="button" class="ghost">Run improvement cycle</button>
+          <h2>Update</h2>
+          <p class="lede" id="upd-status">checking origin…</p>
+          <div class="art-bar">
+            <button type="button" id="upd-check" class="ghost sm">check</button>
+            <button type="button" id="upd-apply" class="ghost sm">apply</button>
+          </div>
         </div>
       </aside>
     </div>
@@ -242,6 +249,12 @@
       <label class="tog"><input type="checkbox" id="opt-focus" /> focus mode</label>
       <p class="lede">CORTEX keeps long-term memory across threads. Threads are the conversation; the mind is shared.</p>
       <button type="button" id="reload-model" class="ghost">reload model/</button>
+      <h2>Update</h2>
+      <p class="lede" id="upd-status-set">source fast-forward from GitHub. Memory and weights stay.</p>
+      <div class="art-bar">
+        <button type="button" id="upd-check-set" class="ghost sm">check</button>
+        <button type="button" id="upd-apply-set" class="ghost sm">apply</button>
+      </div>
     </div>
   </div>
 

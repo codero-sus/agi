@@ -98,6 +98,18 @@ POST /api/hosts/probe
 
 Env: `AGI_LLM=ollama|hoster|openrouter|local`, `AGI_OLLAMA_URL`, `AGI_HOSTER_URL`, `OPENROUTER_API_KEY`. Ollama and the hoster may be localhost or LAN; OpenRouter is pinned to `openrouter.ai` over HTTPS. Local weights still train.
 
+## Updater (v0.11)
+
+The **mind** tab (and settings) can fast-forward this checkout from GitHub. Memory under `data/` and trained weights stay. Origin must be `github.com/codero-sus/agi`. Fast-forward only — dirty or diverged trees are refused. After apply the process restarts (`AGI_UPDATE_RESTART=0` to skip).
+
+```
+GET  /api/update
+POST /api/update/check
+POST /api/update          { "restart": true }
+```
+
+Say `check for updates` or `update yourself`. `/update` in the composer.
+
 ## Agents you can create (v0.7)
 
 Agentic AI here is not a chatbot with plugins. You **spawn named agents** that are slices of this mind:
@@ -195,6 +207,8 @@ Persistent mind state is under `data/` (SQLite + identity + goals + taught artic
 - `GET /v1/models`
 - `GET/POST /api/hosts` — attach Ollama / LLMHoster / OpenRouter as a mouth
 - `POST /api/hosts/probe`
+- `GET /api/update` — current SHA vs origin
+- `POST /api/update` — fast-forward source, then restart
 
 ## Architecture
 

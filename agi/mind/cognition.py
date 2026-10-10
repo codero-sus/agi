@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 _HIGH_CONFIDENCE = {
     "identity", "architecture", "math", "remember", "recall", "greet",
-    "goals", "improve", "teach", "forget", "search", "time", "convert",
+    "goals", "improve", "update", "teach", "forget", "search", "time", "convert",
     "summarize", "hash", "code",
 }
 
@@ -47,6 +47,10 @@ def classify(text: str) -> str:
         return "architecture"
     if re.search(r"\b(improve yourself|run a cycle|self[- ]improve|train now|evolve)\b", t):
         return "improve"
+    if re.search(r"\b(check for updates|update yourself|upgrade cortex|apply update|pull latest)\b", t) or re.match(
+        r"^update(?:\s+yourself)?$", t
+    ):
+        return "update"
     if re.match(r"^(learn this|teach(?: me)?|remember this article)\b", t):
         return "teach"
     if re.search(r"\b(forget that|forget fact|forget everything about)\b", t):
@@ -242,6 +246,10 @@ class Cognition:
             yield thought("act", "Cycle events: " + ", ".join(e.get("kind", "?") for e in ev))
             reply = self._compose_improve(ev)
             act_note = "improvement cycle"
+        elif intent == "update":
+            yield thought("plan", "Checking origin for a newer CORTEX.")
+            reply = self._compose_update(user)
+            act_note = "software update"
         elif intent == "teach":
             reply = self._compose_teach(user)
             act_note = "wrote taught article"
@@ -413,7 +421,8 @@ class Cognition:
             "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
             "5. **Teach** me with `learn this: Title — body` and I persist an article.\n"
             "6. **Speak** through the local core, or an optional mouth: Ollama, Cortex LLMHoster, OpenRouter. "
-            "Those are OpenAI-compatible chat backends. I stay the mind; they do not train me.\n\n"
+            "Those are OpenAI-compatible chat backends. I stay the mind; they do not train me.\n"
+            "7. **Update** from GitHub with `check for updates` / `update yourself`. Fast-forward only; data/ and weights stay.\n\n"
             f"Loader: source={info.get('source')} backend={info.get('backend')} "
             f"params={info.get('params') or neural.get('params')}. "
             f"Neural steps={neural.get('steps')} last loss={neural.get('last_loss')}. "
@@ -579,6 +588,34 @@ class Cognition:
             + "\n".join(lines)
             + f"\n\nNeural steps={neural.get('steps')} last loss={neural.get('last_loss')}."
         )
+
+    def _compose_update(self, user: str) -> str:
+        from agi.mind.updater import apply as do_apply, check as do_check
+
+        t = user.strip().lower()
+        apply_now = bool(re.search(r"\b(apply|install|upgrade|pull|now|yourself)\b", t)) and "check" not in t
+        if apply_now:
+            result = do_apply(restart=True)
+            if result.get("applied"):
+                sha = result.get("sha") or "?"
+                extra = " Restarting." if result.get("restarting") else " Restart the process to load it."
+                return f"Applied {result.get('pulled') or 'the'} commit(s). Now at `{sha}`.{extra}"
+            if result.get("message") == "already current" or not result.get("behind"):
+                return f"Already current at v{result.get('version')} `{result.get('sha')}` on {result.get('branch')}."
+            return f"Could not apply: {result.get('error') or 'unknown error'}."
+        info = do_check(force=True)
+        if not info.get("ok") and info.get("error"):
+            return f"Update check failed: {info['error']}."
+        if info.get("available"):
+            return (
+                f"Update available: {info.get('behind')} commit(s) on `{info.get('branch')}`. "
+                f"Local `{info.get('sha')}` → origin `{info.get('remote_sha')}`. "
+                f"{info.get('remote_message') or ''} "
+                "Say `update yourself` or use the mind tab to apply. Memory and weights stay put."
+            )
+        if info.get("ahead"):
+            return f"Local is {info.get('ahead')} commit(s) ahead of origin. Push before pulling."
+        return f"Current. v{info.get('version')} `{info.get('sha')}` on {info.get('branch')}."
 
 
 def _extract_code(user: str) -> str:
