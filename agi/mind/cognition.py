@@ -41,7 +41,7 @@ def classify(text: str) -> str:
         return "note"
     if re.match(r"^(todo:|remind me(?: to)?|add task\b|add a task\b)", t):
         return "task"
-    if re.search(r"\b(who are you|what are you|your name|about yourself|what is cortex)\b", t):
+    if re.search(r"\b(who are you|what are you|your name|about yourself|what is cortex(?:\s+agi)?)\b", t):
         return "identity"
     if re.search(r"\b(how do you work|architecture|your (brain|mind|model)|safetensors|gguf|ollama|openrouter|hoster)\b", t):
         return "architecture"
@@ -247,7 +247,7 @@ class Cognition:
             reply = self._compose_improve(ev)
             act_note = "improvement cycle"
         elif intent == "update":
-            yield thought("plan", "Checking origin for a newer CORTEX.")
+            yield thought("plan", "Checking origin for a newer Cortex AGI.")
             reply = self._compose_update(user)
             act_note = "software update"
         elif intent == "teach":

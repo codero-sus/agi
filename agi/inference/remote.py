@@ -1,6 +1,6 @@
 """OpenAI-compatible mouths: Ollama, OpenRouter, Cortex LLMHoster.
 
-CORTEX stays the mind. These only speak. Keys never leave this process.
+Cortex AGI stays the mind. These only speak. Keys never leave this process.
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ def _headers(kind: str, key: str) -> dict[str, str]:
         h["Authorization"] = f"Bearer {key}"
     if kind == "openrouter":
         h["HTTP-Referer"] = os.environ.get("AGI_PUBLIC_URL", "http://localhost:8000")
-        h["X-Title"] = "CORTEX"
+        h["X-Title"] = "Cortex AGI"
     return h
 
 

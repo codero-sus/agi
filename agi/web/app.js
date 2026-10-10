@@ -150,7 +150,7 @@ function attachChain(el, chain) {
 function bubble(role, text, asHtml) {
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  el.innerHTML = `<div class="who"><span>${role === "user" ? "you" : "cortex"}</span><span class="acts"></span></div><div class="body"></div>`;
+  el.innerHTML = `<div class="who"><span>${role === "user" ? "you" : "cortex agi"}</span><span class="acts"></span></div><div class="body"></div>`;
   const body = el.querySelector(".body");
   if (asHtml) {
     body.innerHTML = md(text);
@@ -971,7 +971,7 @@ async function loadAgents() {
   const sel = $("agent-sel");
   if (sel) {
     const cur = sel.value;
-    sel.innerHTML = `<option value="">CORTEX</option>`;
+    sel.innerHTML = `<option value="">Cortex AGI</option>`;
     for (const a of agents) {
       const o = document.createElement("option");
       o.value = a.name;
@@ -1138,7 +1138,7 @@ function openPalette() {
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
     { title: "Focus mode", sub: "Ctrl+.", run: () => { settings.focus = !settings.focus; saveSettings(); } },
-    { title: "Improve CORTEX", sub: "/improve", run: () => handleSlash("/improve") },
+    { title: "Improve Cortex AGI", sub: "/improve", run: () => handleSlash("/improve") },
     { title: "Check for updates", sub: "/update", run: () => { showTab("mind"); loadUpdate(true); } },
     { title: "Apply update", sub: "git ff-only", run: () => applyUpdate() },
     { title: "Export thread", sub: "JSON", run: exportThread },

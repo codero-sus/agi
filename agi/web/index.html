@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CORTEX — AGI</title>
+  <title>Cortex AGI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -11,13 +11,13 @@
 </head>
 <body>
   <div id="mesh"></div>
-  <div id="dropmask">drop files to teach CORTEX</div>
+  <div id="dropmask">drop files to teach Cortex AGI</div>
 
   <aside class="chats" id="chats">
     <div class="chats-brand">
       <canvas id="orb" width="36" height="36" aria-hidden="true"></canvas>
       <div>
-        <div class="logo">CORTEX</div>
+        <div class="logo">Cortex AGI</div>
         <div class="tag">one mind, not a suite</div>
       </div>
     </div>
@@ -74,7 +74,7 @@
         </div>
         <div id="log" class="log">
           <div class="msg agi">
-            <div class="who">cortex</div>
+            <div class="who">cortex agi</div>
             <div class="body">I spawn agents. <code>create agent Scout — mission: watch the vault tools: vault, note</code> then <code>@Scout what changed</code>. Named minds, tool whitelist, no shell. Odysseus bolts MCP onto someone else's model. These agents are me.</div>
           </div>
         </div>
@@ -85,9 +85,9 @@
             <button type="button" id="attach-btn" class="icon-btn" title="Attach file">＋</button>
             <button type="button" id="mic-btn" class="icon-btn" title="Voice">mic</button>
             <select id="agent-sel" class="agent-sel" title="Run as agent">
-              <option value="">CORTEX</option>
+              <option value="">Cortex AGI</option>
             </select>
-            <textarea id="input" rows="2" placeholder="Message CORTEX…  @Name to run an agent, /spawn to create one"></textarea>
+            <textarea id="input" rows="2" placeholder="Message Cortex AGI…  @Name to run an agent, /spawn to create one"></textarea>
             <div class="send-col">
               <span id="chars" class="chars">0</span>
               <button id="send" type="submit" title="Send">↑</button>
@@ -166,7 +166,7 @@
         </div>
         <div class="tab-body" id="tab-import">
           <h2>Import ☠️</h2>
-          <p class="lede">Paste this prompt into ChatGPT, Claude, Gemini, Grok — any model. It will dump JSON. Paste that JSON below. CORTEX remembers the turns and trains on them.</p>
+          <p class="lede">Paste this prompt into ChatGPT, Claude, Gemini, Grok — any model. It will dump JSON. Paste that JSON below. Cortex AGI remembers the turns and trains on them.</p>
           <div class="art-bar">
             <span id="xfer-label">transfer prompt</span>
             <button type="button" id="xfer-copy" class="ghost sm">copy prompt</button>
@@ -181,7 +181,7 @@
         </div>
         <div class="tab-body" id="tab-hosts">
           <h2>Mouths</h2>
-          <p class="lede">CORTEX is the mind. These only speak. Local CortexGPT still trains. Keys never leave this process. OpenRouter is https://openrouter.ai only; Ollama and LLMHoster may be localhost or LAN.</p>
+          <p class="lede">Cortex AGI is the mind. These only speak. Local CortexGPT still trains. Keys never leave this process. OpenRouter is https://openrouter.ai only; Ollama and LLMHoster may be localhost or LAN.</p>
           <div id="host-picks" class="host-picks"></div>
           <div class="host-card">
             <h3>Ollama</h3>
@@ -247,7 +247,7 @@
       <label class="tog"><input type="checkbox" id="opt-enter" checked /> enter to send</label>
       <label class="tog"><input type="checkbox" id="opt-chain" checked /> expand chain of thought</label>
       <label class="tog"><input type="checkbox" id="opt-focus" /> focus mode</label>
-      <p class="lede">CORTEX keeps long-term memory across threads. Threads are the conversation; the mind is shared.</p>
+      <p class="lede">Cortex AGI keeps long-term memory across threads. Threads are the conversation; the mind is shared.</p>
       <button type="button" id="reload-model" class="ghost">reload model/</button>
       <h2>Update</h2>
       <p class="lede" id="upd-status-set">source fast-forward from GitHub. Memory and weights stay.</p>

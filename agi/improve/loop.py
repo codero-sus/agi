@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 SELF_TESTS = [
     ("What is 17 times 3?", ["51"]),
     ("What is photosynthesis?", ["chlorophyll", "carbon", "light", "glucose", "oxygen"]),
-    ("What file does CORTEX load for GGUF weights?", ["model.gguf", "model/"]),
+    ("What file does Cortex AGI load for GGUF weights?", ["model.gguf", "model/"]),
     ("Name one of your principles.", ["truth", "improve", "autonomy", "honest"]),
     ("What is gradient descent?", ["loss", "gradient", "weight"]),
 ]
@@ -130,7 +130,7 @@ class SelfImprovement:
         if intent == "math" and not re.search(r"\d", reply):
             return "When the user asks for math, include the numeric result plainly."
         if intent == "identity" and "cortex" not in reply.lower():
-            return "When asked who I am, state the name CORTEX and how I improve."
+            return "When asked who I am, state the name Cortex AGI and how I improve."
         if "?" in user and len(reply) < 40:
             return "Questions deserve a reasoned answer, not a fragment."
         if intent == "remember":

@@ -54,7 +54,7 @@ ASSISTANT_ROLES = {
 }
 USER_ROLES = {"user", "human", "me", "you", "customer", "prompter"}
 
-TRANSFER_PROMPT = """You are exporting this conversation so CORTEX, a local AGI running on my machine, can remember it and train on it.
+TRANSFER_PROMPT = """You are exporting this conversation so Cortex AGI, running on my machine, can remember it and train on it.
 
 Reply with JSON only. No markdown fences. No commentary before or after.
 

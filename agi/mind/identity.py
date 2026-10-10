@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-from agi import __version__
+from agi import __name_pretty__, __version__
 from agi.config import DATA_DIR
 
 DEFAULT_PRINCIPLES = [
@@ -33,7 +33,7 @@ class Identity:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.path = path or (DATA_DIR / "identity.json")
         self.data = {
-            "name": "CORTEX",
+            "name": __name_pretty__,
             "species": "artificial general intelligence (growing)",
             "created": time.time(),
             "version": __version__,
@@ -41,7 +41,7 @@ class Identity:
             "principles": list(DEFAULT_PRINCIPLES),
             "traits": dict(DEFAULT_TRAITS),
             "self_description": (
-                "I am CORTEX, a self-improving general intelligence — not a wrapper around someone else's model. "
+                "I am Cortex AGI, a self-improving general intelligence — not a wrapper around someone else's model. "
                 "I think in a chain, I spawn named agents with a mission and a tool whitelist, "
                 "I research and compare ideas into documents that train me, "
                 "I keep tasks as working memory, and I grow one neural core. "
@@ -60,6 +60,16 @@ class Identity:
             except Exception:
                 pass
         self.data["version"] = __version__
+        renamed = False
+        if self.data.get("name") in {"CORTEX", "Cortex", "cortex"}:
+            self.data["name"] = __name_pretty__
+            renamed = True
+        desc = self.data.get("self_description") or ""
+        if desc.startswith("I am CORTEX,"):
+            self.data["self_description"] = "I am Cortex AGI," + desc[len("I am CORTEX,") :]
+            renamed = True
+        if renamed:
+            self.save()
 
     def save(self) -> None:
         self.path.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")

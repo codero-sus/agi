@@ -1,7 +1,7 @@
 """Deep research that writes a cited report into the mind.
 
 Odysseus wraps a research agent around someone else's model.
-CORTEX researches with System 2, then keeps the report.
+Cortex AGI researches with System 2, then keeps the report.
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def _synthesize(topic: str, sources: list[Source]) -> tuple[str, float, list[str
 
     actions = [
         f"Read a primary source on {topic}",
-        f"Teach CORTEX a tighter article about {topic}",
+        f"Teach Cortex AGI a tighter article about {topic}",
     ]
     if vault:
         actions.append(f"Cross-check vault file {vault[0].title} against the verdict")
