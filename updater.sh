@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fast-forward Cortex AGI source from GitHub. data/ and trained weights stay.
-# Interpreter is python.env in the project root (PYTHON=path, or a bare path).
+# Interpreter: 2PY2, else optional python.env, else python3/python. (Linux / macOS)
 set -euo pipefail
 cd "$(dirname "$0")"
 export GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0
@@ -34,9 +34,24 @@ read_python_env() {
   return 1
 }
 
-PYTHON="${AGI_PYTHON:-${PYTHON:-}}"
+# 2PY2 starts with a digit — $2PY2 would be positional $2. Use printenv.
+PYTHON="$(printenv 2PY2 2>/dev/null || true)"
+SRC="2PY2"
 if [ -z "$PYTHON" ]; then
-  read_python_env python.env || die "put the Python path in python.env at the project root"
+  SRC="python.env"
+  read_python_env python.env || true
+fi
+if [ -z "${PYTHON:-}" ]; then
+  SRC="default"
+  if [ -x .venv/bin/python ]; then
+    PYTHON=".venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON="python3"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON="python"
+  else
+    die "no Python found — set 2PY2 or add python.env"
+  fi
 fi
 
 command -v git >/dev/null 2>&1 || die "git not installed"
@@ -56,7 +71,7 @@ fi
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" != "HEAD" ] || die "detached HEAD — checkout a branch"
 
-echo "python: $PYTHON  (python.env)"
+echo "python: $PYTHON  ($SRC)"
 echo "fetching origin/${branch}…"
 git fetch --depth 50 origin "$branch"
 before="$(git rev-parse --short HEAD)"
@@ -74,4 +89,4 @@ if [ -f requirements.txt ]; then
     || echo "updater: pip failed (source is updated; install deps yourself)" >&2
 fi
 
-echo "Cortex AGI updated. Restart: $PYTHON -m agi"
+echo "Cortex AGI updated. Restart: $PYTHON -m agi   or   ./run.sh"

@@ -19,13 +19,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Put the interpreter in **`python.env`** at the project root:
+Interpreter, in order (Windows, Linux, macOS):
 
-```
-PYTHON=.venv/bin/python
-```
+1. **`2PY2`** — portable / embeddable Python (not Python 2). Linux/macOS: `env 2PY2=/path/to/python ./run.sh` (`export 2PY2` is invalid — the name starts with a digit). Windows: `set 2PY2=C:\portable\python.exe`
+2. **`python.env`** at the project root — optional. `PYTHON=.venv/bin/python`
+3. `python3` / `python` / `.venv`
 
-Then `python -m agi` or `python run.py`. Open the control plane at `http://localhost:8000`.
+Then `./run.sh` (Linux/macOS) or `run.bat` (Windows), or `python -m agi`. Open the control plane at `http://localhost:8000`.
 
 Optional GGUF runtime:
 
@@ -122,7 +122,7 @@ From the repo root:
 updater.bat           # Windows
 ```
 
-The interpreter is **`python.env`** in the project root (`PYTHON=/path/to/python`). Required by `updater.sh`, `updater.bat`, and `run.py`. Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `"$PYTHON" -m agi` after it finishes.
+Interpreter: **`2PY2`**, else optional **`python.env`**, else system Python. Same on Windows (`updater.bat`, `run.bat`), Linux, and macOS (`updater.sh`, `run.sh`). Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart with `./run.sh` or `run.bat`.
 
 ## Agents you can create (v0.7)
 
