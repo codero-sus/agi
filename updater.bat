@@ -1,25 +1,28 @@
 @echo off
 REM Fast-forward Cortex AGI source from GitHub. data/ and trained weights stay.
-REM Interpreter is python.env in the project root (PYTHON=path, or a bare path).
+REM Interpreter: 2PY2, else optional python.env, else python / .venv. (Windows)
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 set GIT_TERMINAL_PROMPT=0
 set GIT_OPTIONAL_LOCKS=0
 if "%AGI_UPDATE_REPO%"=="" set AGI_UPDATE_REPO=codero-sus/agi
 
-if defined AGI_PYTHON set "PYTHON=%AGI_PYTHON%"
+REM 2PY2 starts with a digit — %2PY2% would be %%2. Delayed expansion works.
+if defined 2PY2 (
+  set "PYTHON=!2PY2!"
+  set "SRC=2PY2"
+)
 if not defined PYTHON (
   if exist python.env (
     call :read_python python.env
-  ) else (
-    echo updater: put the Python path in python.env at the project root
-    exit /b 1
+    if defined PYTHON set "SRC=python.env"
   )
 )
 if not defined PYTHON (
-  echo updater: put the Python path in python.env at the project root
-  exit /b 1
+  if exist ".venv\Scripts\python.exe" set "PYTHON=.venv\Scripts\python.exe"
 )
+if not defined PYTHON set "PYTHON=python"
+if not defined SRC set "SRC=default"
 
 where git >nul 2>&1
 if errorlevel 1 (
@@ -55,7 +58,7 @@ if /i "%BRANCH%"=="HEAD" (
   exit /b 1
 )
 
-echo python: %PYTHON%  ^(python.env^)
+echo python: %PYTHON%  ^(%SRC%^)
 echo fetching origin/%BRANCH%…
 git fetch --depth 50 origin "%BRANCH%"
 if errorlevel 1 (
@@ -82,7 +85,7 @@ if exist requirements.txt (
   if errorlevel 1 echo updater: pip failed ^(source is updated; install deps yourself^)
 )
 
-echo Cortex AGI updated. Restart: %PYTHON% -m agi
+echo Cortex AGI updated. Restart: %PYTHON% -m agi   or   run.bat
 exit /b 0
 
 :read_python

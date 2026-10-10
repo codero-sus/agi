@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Launch Cortex AGI with the interpreter in python.env (project root)."""
+"""Launch Cortex AGI.
+
+Interpreter, in order:
+  1. env 2PY2 — portable / embeddable Python (not Python 2)
+  2. optional python.env at the project root
+  3. whatever ran this file
+"""
 
 from __future__ import annotations
 
@@ -34,7 +40,7 @@ def _from_python_env() -> str | None:
 
 
 if __name__ == "__main__":
-    wanted = (os.environ.get("AGI_PYTHON") or "").strip() or _from_python_env()
+    wanted = (os.environ.get("2PY2") or "").strip() or _from_python_env()
     if wanted:
         try:
             same = Path(wanted).resolve() == Path(sys.executable).resolve()

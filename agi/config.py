@@ -60,29 +60,45 @@ MEMORY_INDEX_CAP = 2000
 # AGI_UPDATE_REPO (default codero-sus/agi), AGI_UPDATE_RESTART=0 to skip process restart after apply
 
 
+def _resolve_python_path(raw: str) -> str:
+    line = (raw or "").strip().strip('"').strip("'")
+    if not line:
+        return ""
+    p = Path(line)
+    if not p.is_absolute():
+        p = ROOT / p
+    return str(p)
+
+
+def python_from_env_file(path: Path | None = None) -> str:
+    """Optional python.env at the project root. Empty string if missing."""
+    path = path or PYTHON_ENV_PATH
+    if not path.is_file():
+        return ""
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("python="):
+            line = line.split("=", 1)[1]
+        found = _resolve_python_path(line)
+        if found:
+            return found
+    return ""
+
+
 def python_executable() -> str:
-    """Interpreter recorded in python.env at the project root."""
-    override = (os.environ.get("AGI_PYTHON") or "").strip()
-    if override:
-        return override
-    path = PYTHON_ENV_PATH
-    if path.is_file():
-        try:
-            text = path.read_text(encoding="utf-8-sig")
-        except OSError:
-            text = ""
-        for raw in text.splitlines():
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.lower().startswith("python="):
-                line = line.split("=", 1)[1].strip().strip('"').strip("'")
-            if not line:
-                continue
-            p = Path(line)
-            if not p.is_absolute():
-                p = ROOT / p
-            return str(p)
+    """2PY2 (portable Python) wins, then optional python.env, then this process."""
+    portable = (os.environ.get("2PY2") or "").strip()
+    if portable:
+        return _resolve_python_path(portable) or portable
+    from_file = python_from_env_file()
+    if from_file:
+        return from_file
     return sys.executable
 
 
