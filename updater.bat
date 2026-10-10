@@ -6,6 +6,7 @@ cd /d "%~dp0"
 set GIT_TERMINAL_PROMPT=0
 set GIT_OPTIONAL_LOCKS=0
 if "%AGI_UPDATE_REPO%"=="" set AGI_UPDATE_REPO=codero-sus/agi
+if "%AGI_UPDATE_REF%"=="" set AGI_UPDATE_REF=arena/01a0d380-agi
 
 REM 2PY2 starts with a digit — %2PY2% would be %%2. Delayed expansion works.
 if defined 2PY2 (
@@ -52,32 +53,36 @@ for /f "delims=" %%i in ('git status --porcelain') do (
   exit /b 1
 )
 
-for /f "delims=" %%i in ('git rev-parse --abbrev-ref HEAD') do set "BRANCH=%%i"
-if /i "%BRANCH%"=="HEAD" (
-  echo updater: detached HEAD — checkout a branch
-  exit /b 1
-)
-
 echo python: %PYTHON%  ^(%SRC%^)
-echo fetching origin/%BRANCH%…
-git fetch --depth 50 origin "%BRANCH%"
+echo branch: %AGI_UPDATE_REF%
+echo fetching origin/%AGI_UPDATE_REF%…
+git fetch --depth 50 origin "%AGI_UPDATE_REF%"
 if errorlevel 1 (
   echo updater: fetch failed
   exit /b 1
 )
+for /f "delims=" %%i in ('git rev-parse --abbrev-ref HEAD') do set "CUR=%%i"
+if /i not "%CUR%"=="%AGI_UPDATE_REF%" (
+  git checkout "%AGI_UPDATE_REF%" 2>nul
+  if errorlevel 1 git checkout -B "%AGI_UPDATE_REF%" "origin/%AGI_UPDATE_REF%"
+  if errorlevel 1 (
+    echo updater: cannot checkout %AGI_UPDATE_REF%
+    exit /b 1
+  )
+)
 for /f "delims=" %%i in ('git rev-parse --short HEAD') do set "BEFORE=%%i"
-for /f "delims=" %%i in ('git rev-parse --short origin/%BRANCH%') do set "REMOTE=%%i"
+for /f "delims=" %%i in ('git rev-parse --short origin/%AGI_UPDATE_REF%') do set "REMOTE=%%i"
 if /i "%BEFORE%"=="%REMOTE%" (
-  echo already current ^(%BEFORE%^)
+  echo already current ^(%BEFORE%^) on %AGI_UPDATE_REF%
   exit /b 0
 )
-git merge --ff-only "origin/%BRANCH%"
+git merge --ff-only "origin/%AGI_UPDATE_REF%"
 if errorlevel 1 (
   echo updater: fast-forward failed ^(dirty or diverged^)
   exit /b 1
 )
 for /f "delims=" %%i in ('git rev-parse --short HEAD') do set "AFTER=%%i"
-echo source %BEFORE% → %AFTER%
+echo source %BEFORE% → %AFTER%  ^(%AGI_UPDATE_REF%^)
 
 if exist requirements.txt (
   echo syncing requirements with %PYTHON% …

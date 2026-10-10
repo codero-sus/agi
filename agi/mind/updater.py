@@ -21,6 +21,7 @@ from agi import __version__
 from agi.config import ROOT, python_executable
 
 DEFAULT_REPO = "codero-sus/agi"
+DEFAULT_REF = "arena/01a0d380-agi"
 ALLOWED_HOSTS = {"github.com", "www.github.com"}
 API_HOSTS = {"api.github.com"}
 _LOCK = threading.RLock()
@@ -33,6 +34,14 @@ def _repo() -> str:
     raw = (os.environ.get("AGI_UPDATE_REPO") or DEFAULT_REPO).strip()
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", raw):
         return DEFAULT_REPO
+    return raw
+
+
+def _track_ref() -> str:
+    """Branch the updater pulls. This checkout's branch, not main."""
+    raw = (os.environ.get("AGI_UPDATE_REF") or DEFAULT_REF).strip()
+    if not re.fullmatch(r"[\w./-]+", raw) or raw.startswith("-") or ".." in raw:
+        return DEFAULT_REF
     return raw
 
 
@@ -120,6 +129,7 @@ def local() -> dict:
         "origin_ok": _origin_ok(origin),
         "dirty": dirty,
         "git": bool(sha),
+        "track": _track_ref(),
     }
 
 
@@ -184,20 +194,17 @@ def check(*, force: bool = False) -> dict:
             out["error"] = "not a git checkout"
             _CACHE, _CACHE_AT = out, now
             return out
-        if loc["branch"] in {"HEAD", ""}:
-            out["ok"] = False
-            out["error"] = "detached HEAD — checkout a branch to update"
-            _CACHE, _CACHE_AT = out, now
-            return out
         if not loc["origin_ok"]:
             out["ok"] = False
             out["error"] = f"origin is not github.com/{_repo()} — refusing"
             _CACHE, _CACHE_AT = out, now
             return out
-        code, _o, err = _git("fetch", "--depth", "50", "origin", loc["branch"], timeout=40)
-        remote_sha = _git_one("rev-parse", f"origin/{loc['branch']}")
+        track = _track_ref()
+        out["track"] = track
+        code, _o, err = _git("fetch", "--depth", "50", "origin", track, timeout=40)
+        remote_sha = _git_one("rev-parse", f"origin/{track}")
         if not remote_sha:
-            gh = _github_head(loc["branch"])
+            gh = _github_head(track)
             if gh.get("ok"):
                 remote_sha = gh["sha"]
                 out["remote_message"] = gh.get("message") or ""
@@ -207,11 +214,11 @@ def check(*, force: bool = False) -> dict:
                 _CACHE, _CACHE_AT = out, now
                 return out
         else:
-            out["remote_message"] = _git_one("log", "-1", "--format=%s", f"origin/{loc['branch']}")[:160]
+            out["remote_message"] = _git_one("log", "-1", "--format=%s", f"origin/{track}")[:160]
         out["remote_sha"] = (remote_sha or "")[:12]
         if remote_sha:
-            behind = _git_one("rev-list", "--count", f"HEAD..origin/{loc['branch']}")
-            ahead = _git_one("rev-list", "--count", f"origin/{loc['branch']}..HEAD")
+            behind = _git_one("rev-list", "--count", f"HEAD..origin/{track}")
+            ahead = _git_one("rev-list", "--count", f"origin/{track}..HEAD")
             try:
                 out["behind"] = int(behind or 0)
                 out["ahead"] = int(ahead or 0)
@@ -230,7 +237,7 @@ def check(*, force: bool = False) -> dict:
         elif out["ahead"] and not out["behind"]:
             out["error"] = None
         if err and "couldn't find remote ref" in err.lower():
-            out["error"] = f"origin has no {loc['branch']}"
+            out["error"] = f"origin has no {track}"
             out["available"] = False
         _CACHE, _CACHE_AT = out, time.time()
         return out
@@ -278,8 +285,15 @@ def apply(*, restart: bool = True) -> dict:
         req_path = ROOT / "requirements.txt"
         if req_path.exists():
             req_before = req_path.read_text(encoding="utf-8")
-        branch = info["branch"]
-        code, out, err = _git("merge", "--ff-only", f"origin/{branch}", timeout=40)
+        track = info.get("track") or _track_ref()
+        current = _git_one("rev-parse", "--abbrev-ref", "HEAD")
+        if current != track:
+            code, _o, err = _git("checkout", track, timeout=20)
+            if code != 0:
+                code, _o, err = _git("checkout", "-B", track, f"origin/{track}", timeout=20)
+            if code != 0:
+                return {**info, "applied": False, "error": (err or f"cannot checkout {track}")[:300]}
+        code, out, err = _git("merge", "--ff-only", f"origin/{track}", timeout=40)
         if code != 0:
             return {**info, "applied": False, "error": (err or out or "merge failed")[:300]}
         pip_err = ""

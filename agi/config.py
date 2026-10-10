@@ -57,7 +57,9 @@ MEMORY_INDEX_CAP = 2000
 # AGI_OLLAMA_URL (default http://127.0.0.1:11434), AGI_OLLAMA_MODEL
 # AGI_HOSTER_URL (default http://127.0.0.1:8624), AGI_HOSTER_MODEL, AGI_HOSTER_KEY / CORTEX_API_KEY
 # OPENROUTER_API_KEY / AGI_OPENROUTER_KEY, AGI_OPENROUTER_MODEL (OpenRouter is https://openrouter.ai only)
-# AGI_UPDATE_REPO (default codero-sus/agi), AGI_UPDATE_RESTART=0 to skip process restart after apply
+# AGI_UPDATE_REPO (default codero-sus/agi), AGI_UPDATE_REF (default arena/01a0d380-agi)
+# AGI_UPDATE_RESTART=0 to skip process restart after apply
+# 2PY2 = portable/embeddable Python; optional python.env at the project root
 
 
 def _resolve_python_path(raw: str) -> str:
