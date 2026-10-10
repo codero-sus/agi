@@ -1,25 +1,25 @@
 @echo off
 REM Fast-forward Cortex AGI source from GitHub. data/ and trained weights stay.
-REM Python comes from python.env (PYTHON=...).
+REM Interpreter is python.env in the project root (PYTHON=path, or a bare path).
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 set GIT_TERMINAL_PROMPT=0
 set GIT_OPTIONAL_LOCKS=0
 if "%AGI_UPDATE_REPO%"=="" set AGI_UPDATE_REPO=codero-sus/agi
 
+if defined AGI_PYTHON set "PYTHON=%AGI_PYTHON%"
 if not defined PYTHON (
-  if exist python.env call :read_python python.env
+  if exist python.env (
+    call :read_python python.env
+  ) else (
+    echo updater: put the Python path in python.env at the project root
+    exit /b 1
+  )
 )
 if not defined PYTHON (
-  if exist python.env.example call :read_python python.env.example
+  echo updater: put the Python path in python.env at the project root
+  exit /b 1
 )
-if not defined PYTHON (
-  if exist ".venv\Scripts\python.exe" set "PYTHON=.venv\Scripts\python.exe"
-)
-if not defined PYTHON (
-  if exist ".venv\bin\python" set "PYTHON=.venv\bin\python"
-)
-if not defined PYTHON set "PYTHON=python"
 
 where git >nul 2>&1
 if errorlevel 1 (
@@ -55,7 +55,7 @@ if /i "%BRANCH%"=="HEAD" (
   exit /b 1
 )
 
-echo python: %PYTHON%
+echo python: %PYTHON%  ^(python.env^)
 echo fetching origin/%BRANCH%…
 git fetch --depth 50 origin "%BRANCH%"
 if errorlevel 1 (
@@ -89,6 +89,10 @@ exit /b 0
 for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%~1") do (
   if /i "%%A"=="PYTHON" (
     set "_PY=%%B"
+  ) else if "%%B"=="" (
+    set "_PY=%%A"
+  )
+  if defined _PY (
     set "_PY=!_PY:"=!"
     if defined _PY set "PYTHON=!_PY!"
   )

@@ -17,10 +17,15 @@ If neither file is present, it boots **CortexGPT** (a numpy transformer), trains
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m agi
 ```
 
-Then open the control plane at `http://localhost:8000`.
+Put the interpreter in **`python.env`** at the project root:
+
+```
+PYTHON=.venv/bin/python
+```
+
+Then `python -m agi` or `python run.py`. Open the control plane at `http://localhost:8000`.
 
 Optional GGUF runtime:
 
@@ -117,7 +122,7 @@ From the repo root:
 updater.bat           # Windows
 ```
 
-Python is read from **`python.env`** (`PYTHON=...`). Point it at your venv. Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `"$PYTHON" -m agi` after it finishes.
+The interpreter is **`python.env`** in the project root (`PYTHON=/path/to/python`). Required by `updater.sh`, `updater.bat`, and `run.py`. Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart `"$PYTHON" -m agi` after it finishes.
 
 ## Agents you can create (v0.7)
 

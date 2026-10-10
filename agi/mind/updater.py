@@ -11,7 +11,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 import threading
 import time
 from urllib.parse import urlparse, urlsplit, urlunsplit
@@ -19,7 +18,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from agi import __version__
-from agi.config import ROOT
+from agi.config import ROOT, python_executable
 
 DEFAULT_REPO = "codero-sus/agi"
 ALLOWED_HOSTS = {"github.com", "www.github.com"}
@@ -240,7 +239,7 @@ def check(*, force: bool = False) -> dict:
 def _pip() -> str:
     try:
         p = subprocess.run(  # noqa: S603
-            [sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q", "--disable-pip-version-check"],
+            [python_executable(), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q", "--disable-pip-version-check"],
             cwd=str(ROOT),
             capture_output=True,
             text=True,
@@ -258,7 +257,8 @@ def _restart_later() -> None:
     def _go():
         time.sleep(1.2)
         os.chdir(str(ROOT))
-        os.execv(sys.executable, [sys.executable, "-m", "agi"])
+        py = python_executable()
+        os.execv(py, [py, "-m", "agi"])
 
     threading.Thread(target=_go, daemon=True, name="cortex-restart").start()
 
