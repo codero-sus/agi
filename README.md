@@ -122,7 +122,7 @@ From the repo root:
 updater.bat           # Windows
 ```
 
-Interpreter: **`2PY2`**, else optional **`python.env`**, else system Python. Same on Windows (`updater.bat`, `run.bat`), Linux, and macOS (`updater.sh`, `run.sh`). Same rules: GitHub `codero-sus/agi` only, fast-forward, `data/` and weights stay. Restart with `./run.sh` or `run.bat`.
+Pulls **`arena/01a0d380-agi`** (override with `AGI_UPDATE_REF`). Interpreter: **`2PY2`**, else optional **`python.env`**, else system Python. Same on Windows (`updater.bat`, `run.bat`), Linux, and macOS (`updater.sh`, `run.sh`). Fast-forward only; `data/` and weights stay. Restart with `./run.sh` or `run.bat`.
 
 ## Agents you can create (v0.7)
 

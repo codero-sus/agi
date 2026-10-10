@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0
 REPO="${AGI_UPDATE_REPO:-codero-sus/agi}"
+REF="${AGI_UPDATE_REF:-arena/01a0d380-agi}"
 
 die() { echo "updater: $*" >&2; exit 1; }
 
@@ -68,20 +69,22 @@ if [ -n "$(git status --porcelain)" ]; then
   die "working tree dirty — commit or stash first (data/ and weights are already ignored)"
 fi
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
-[ "$branch" != "HEAD" ] || die "detached HEAD — checkout a branch"
-
 echo "python: $PYTHON  ($SRC)"
-echo "fetching origin/${branch}…"
-git fetch --depth 50 origin "$branch"
+echo "branch: $REF"
+echo "fetching origin/${REF}…"
+git fetch --depth 50 origin "$REF"
 before="$(git rev-parse --short HEAD)"
-if git merge-base --is-ancestor "origin/${branch}" HEAD 2>/dev/null && [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/${branch}")" ]; then
-  echo "already current (${before})"
+cur="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$cur" != "$REF" ]; then
+  git checkout "$REF" 2>/dev/null || git checkout -B "$REF" "origin/${REF}"
+fi
+if git merge-base --is-ancestor "origin/${REF}" HEAD 2>/dev/null && [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/${REF}")" ]; then
+  echo "already current (${before}) on ${REF}"
   exit 0
 fi
-git merge --ff-only "origin/${branch}"
+git merge --ff-only "origin/${REF}"
 after="$(git rev-parse --short HEAD)"
-echo "source ${before} → ${after}"
+echo "source ${before} → ${after}  (${REF})"
 
 if [ -f requirements.txt ]; then
   echo "syncing requirements with $PYTHON …"
