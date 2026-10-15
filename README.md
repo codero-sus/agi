@@ -82,9 +82,14 @@ GET  /api/import/prompt
 POST /api/import/json   { "text": "{ ... cortex_export ... }" }
 ```
 
-## Mouths (v0.10)
+## Mouths (v0.12)
 
-Cortex AGI stays the mind. Optional **OpenAI-compatible** backends only speak — they do not train, they do not own memory.
+Cortex AGI stays the mind. Optional **OpenAI-compatible** backends speak. **Train** uses them as teachers:
+
+- **local** — Adam on CortexGPT (`model/model.safetensors`)
+- **Ollama** — `POST /api/create` bakes `cortex-agi` (FROM + SYSTEM + few-shot), then distills replies into CortexGPT
+- **LLMHoster** — writes `data/train.jsonl` for llama.cpp finetune, POSTs a fine-tune job if the hoster exposes one, distills into CortexGPT
+- **OpenRouter** — speak only (keys never leave this process)
 
 | mouth | default | auth |
 |---|---|---|
@@ -99,9 +104,10 @@ Pick one in the **hosts** tab. Keys are stored in `data/hosts.json`, masked on `
 GET  /api/hosts
 POST /api/hosts          { "active": "ollama", "ollama": { "url", "model" } }
 POST /api/hosts/probe
+POST /api/train          { "targets": ["local", "ollama", "hoster"] }
 ```
 
-Env: `AGI_LLM=ollama|hoster|openrouter|local`, `AGI_OLLAMA_URL`, `AGI_HOSTER_URL`, `OPENROUTER_API_KEY`. Ollama and the hoster may be localhost or LAN; OpenRouter is pinned to `openrouter.ai` over HTTPS. Local weights still train.
+Env: `AGI_LLM=ollama|hoster|openrouter|local`, `AGI_OLLAMA_URL`, `AGI_HOSTER_URL`, `OPENROUTER_API_KEY`. Ollama and the hoster may be localhost or LAN; OpenRouter is pinned to `openrouter.ai` over HTTPS.
 
 ## Updater (v0.11)
 
@@ -221,6 +227,7 @@ Persistent mind state is under `data/` (SQLite + identity + goals + taught artic
 - `GET /v1/models`
 - `GET/POST /api/hosts` — attach Ollama / LLMHoster / OpenRouter as a mouth
 - `POST /api/hosts/probe`
+- `POST /api/train` — `{ "targets": ["local","ollama","hoster"] }` bake + distill
 - `GET /api/update` — current SHA vs origin
 - `POST /api/update` — fast-forward source, then restart
 

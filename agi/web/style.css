@@ -124,7 +124,7 @@ body.focus .desk { grid-template-columns: 1fr; }
 .desk {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 340px;
   gap: 12px;
   padding: 0 14px 12px;
   min-height: 0;
@@ -202,7 +202,19 @@ body.focus .desk { grid-template-columns: 1fr; }
 @keyframes blink { 50% { opacity: 0; } }
 
 #composer { padding: 10px 14px 14px; border-top: 1px solid var(--line2); }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.composer-meta { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.mouth-chip {
+  flex: 0 0 auto;
+  background: var(--mint-dim);
+  border: 1px solid var(--line);
+  color: var(--mint);
+  font: 11px "IBM Plex Mono", monospace;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.mouth-chip:hover { color: var(--text); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; flex: 1; }
 .chips button, .ghost {
   background: transparent;
   border: 1px solid var(--line2);
@@ -304,14 +316,30 @@ textarea:focus { border-color: var(--mint); }
   padding: 8px;
   margin-bottom: 8px;
 }
+.host-card.speaking { border-color: var(--mint); background: rgba(61, 255, 200, 0.04); }
+.host-card.live { border-color: var(--line); }
+.host-card.off { opacity: 0.88; }
 .host-card h3 {
   font: 11px "IBM Plex Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--mint);
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+.host-card h3 .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: var(--muted);
+}
+.host-card.live h3 .dot { background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+.host-card.off h3 .dot { background: var(--danger); }
 .host-card .find { margin-bottom: 6px; }
+.host-card.train .tog { font-size: 12px; margin: 4px 0; }
 .import-json {
   width: 100%;
   min-height: 130px;
@@ -393,16 +421,24 @@ textarea:focus { border-color: var(--mint); }
 .thoughts .t[data-kind="strategy"] .k,
 .thoughts .t[data-kind="decompose"] .k { color: var(--amber); }
 
-.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line2); }
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line2);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
 .tabs button {
-  flex: 1;
+  flex: 0 0 auto;
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
   color: var(--muted);
-  padding: 10px 2px;
-  font: 9px "IBM Plex Mono", monospace;
-  letter-spacing: 0.06em;
+  padding: 10px 9px;
+  font: 10px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
 }

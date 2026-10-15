@@ -105,6 +105,11 @@ class AGI:
         self.engine.train_on(f"{art.title}. {art.body}", steps=6, blocking=False)
         return {"title": art.title, "body": art.body}
 
+    def train(self, targets: list[str] | None = None) -> dict:
+        from agi.improve.distill import run_train
+
+        return run_train(self, targets)
+
     def state(self) -> dict:
         return {
             "identity": self.identity.snapshot(),

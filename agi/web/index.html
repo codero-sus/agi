@@ -51,6 +51,7 @@
         <span class="pill dim" id="conn-pill">offline</span>
         <span class="pill dim" id="ver-pill">v—</span>
         <span class="pill" id="src-pill">bootstrap</span>
+        <span class="pill dim" id="mouth-pill">local</span>
         <span class="pill dim" id="turn-pill">turns 0</span>
         <span class="pill dim" id="cycle-pill">cycles 0</span>
         <span class="pill dim" id="loss-pill">loss —</span>
@@ -75,11 +76,14 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex agi</div>
-            <div class="body">I spawn agents. <code>create agent Scout — mission: watch the vault tools: vault, note</code> then <code>@Scout what changed</code>. Named minds, tool whitelist, no shell. Odysseus bolts MCP onto someone else's model. These agents are me.</div>
+            <div class="body">I am the mind. Mouths speak. Train CortexGPT, bake Ollama <code>cortex-agi</code>, distill from LLMHoster. Keys never leave this process. <code>/train</code> or the hosts tab.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
-          <div class="chips" id="chips"></div>
+          <div class="composer-meta">
+            <button type="button" id="mouth-chip" class="mouth-chip" title="Change mouth">local</button>
+            <div class="chips" id="chips"></div>
+          </div>
           <div id="attach-strip" class="attach-strip"></div>
           <div class="row">
             <button type="button" id="attach-btn" class="icon-btn" title="Attach file">＋</button>
@@ -181,31 +185,42 @@
         </div>
         <div class="tab-body" id="tab-hosts">
           <h2>Mouths</h2>
-          <p class="lede">Cortex AGI is the mind. These only speak. Local CortexGPT still trains. Keys never leave this process. OpenRouter is https://openrouter.ai only; Ollama and LLMHoster may be localhost or LAN.</p>
+          <p class="lede">Cortex AGI is the mind. These speak. Train bakes Ollama <code>cortex-agi</code>, distills LLMHoster/Ollama into CortexGPT, writes <code>data/train.jsonl</code>. Keys never leave this process.</p>
           <div id="host-picks" class="host-picks"></div>
-          <div class="host-card">
-            <h3>Ollama</h3>
+          <div class="host-card" data-kind="ollama" id="card-ollama">
+            <h3><i class="dot"></i> Ollama</h3>
             <input id="ollama-url" class="find" placeholder="http://127.0.0.1:11434" />
             <select id="ollama-model" class="find"></select>
           </div>
-          <div class="host-card">
-            <h3>Cortex LLMHoster</h3>
+          <div class="host-card" data-kind="hoster" id="card-hoster">
+            <h3><i class="dot"></i> Cortex LLMHoster</h3>
             <input id="hoster-url" class="find" placeholder="http://127.0.0.1:8624" />
             <select id="hoster-model" class="find"></select>
             <input id="hoster-key" class="find" type="password" autocomplete="off" placeholder="CORTEX_API_KEY (optional)" />
           </div>
-          <div class="host-card">
-            <h3>OpenRouter</h3>
-            <p class="lede">Fixed to https://openrouter.ai/api/v1</p>
+          <div class="host-card" data-kind="openrouter" id="card-openrouter">
+            <h3><i class="dot"></i> OpenRouter</h3>
+            <p class="lede">Speak only. Fixed to https://openrouter.ai/api/v1</p>
             <input id="or-model" class="find" placeholder="openrouter/auto" />
             <select id="or-model-sel" class="find" hidden></select>
             <input id="or-key" class="find" type="password" autocomplete="off" placeholder="OPENROUTER_API_KEY" />
           </div>
           <div class="art-bar">
             <button type="button" id="host-probe" class="ghost sm">probe</button>
-            <button type="button" id="host-save" class="ghost sm">use this mouth</button>
+            <button type="button" id="host-save" class="ghost sm">speak</button>
           </div>
           <p class="lede" id="host-status"></p>
+          <div class="host-card train">
+            <h3>Train</h3>
+            <p class="lede">Uses the mind (identity, facts, dialogue) as the corpus.</p>
+            <label class="tog"><input type="checkbox" id="tr-local" checked /> CortexGPT Adam</label>
+            <label class="tog"><input type="checkbox" id="tr-ollama" checked /> Ollama bake + distill</label>
+            <label class="tog"><input type="checkbox" id="tr-hoster" checked /> LLMHoster distill + JSONL</label>
+            <div class="art-bar">
+              <button type="button" id="host-train" class="ghost sm">train</button>
+            </div>
+            <p class="lede" id="train-status"></p>
+          </div>
         </div>
         <div class="tab-body" id="tab-mind">
           <h2>Core</h2>

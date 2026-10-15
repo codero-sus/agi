@@ -222,7 +222,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /update /stop /focus /agents", true);
+    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /train /hosts /update /stop /focus /agents", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -230,6 +230,10 @@ function handleSlash(t) {
   if (cmd === "export") { exportThread(); return true; }
   if (cmd === "improve") {
     ws.send(JSON.stringify({ type: "improve", message: "improve", session_id: sessionId }));
+    return true;
+  }
+  if (cmd === "train") {
+    send(arg ? `train ${arg}` : "Train models");
     return true;
   }
   if (cmd === "update" || cmd === "upgrade") {
@@ -279,7 +283,7 @@ function handleSlash(t) {
     showTab("import");
     return true;
   }
-  if (cmd === "hosts" || cmd === "ollama" || cmd === "openrouter") {
+  if (cmd === "hosts" || cmd === "ollama" || cmd === "openrouter" || cmd === "hoster") {
     showTab("hosts");
     loadHosts();
     return true;
@@ -629,6 +633,18 @@ function renderState(s) {
   if ($("ver-pill")) $("ver-pill").textContent = `v${ident.version || "?"}`;
   $("src-pill").textContent = `${engine.source || "?"} · ${engine.backend || "?"}`;
   $("src-pill").className = "pill" + (engine.warning ? " warn" : "");
+  const hosts = s.hosts || {};
+  const mouth = hosts.active || "local";
+  let mouthLabel = mouth;
+  if (mouth === "local") mouthLabel = `local · ${engine.source || "?"}`;
+  else if (mouth === "ollama") mouthLabel = `ollama · ${(hosts.ollama || {}).model || "—"}`;
+  else if (mouth === "hoster") mouthLabel = `hoster · ${(hosts.hoster || {}).model || "—"}`;
+  else if (mouth === "openrouter") mouthLabel = `openrouter · ${(hosts.openrouter || {}).model || "—"}`;
+  if ($("mouth-pill")) {
+    $("mouth-pill").textContent = mouthLabel;
+    $("mouth-pill").className = "pill" + (mouth === "local" ? " dim" : "");
+  }
+  if ($("mouth-chip")) $("mouth-chip").textContent = mouth;
   $("turn-pill").textContent = `turns ${ident.turns ?? 0}`;
   $("cycle-pill").textContent = `cycles ${ident.cycles ?? 0}`;
   const loss = neural.last_loss;
@@ -1015,9 +1031,22 @@ function renderHostPicks(active) {
   }
 }
 
+function markHostCards(active, probe) {
+  document.querySelectorAll(".host-card[data-kind]").forEach((c) => {
+    const k = c.dataset.kind;
+    c.classList.toggle("speaking", k === active);
+    if (probe && probe[k]) {
+      c.classList.toggle("live", !!probe[k].ok);
+      c.classList.toggle("off", !probe[k].ok);
+    }
+  });
+}
+
 function applyHostSnap(d) {
   hostActive = d.active || "local";
   renderHostPicks(hostActive);
+  markHostCards(hostActive);
+  if ($("mouth-chip")) $("mouth-chip").textContent = hostActive;
   const ol = d.ollama || {};
   const ho = d.hoster || {};
   const or = d.openrouter || {};
@@ -1080,6 +1109,7 @@ if ($("host-probe")) {
       }
     }
     if (st) st.textContent = bits.join(" · ");
+    markHostCards(hostActive, res);
   };
 }
 if ($("host-save")) {
@@ -1099,6 +1129,50 @@ if ($("host-save")) {
     if (st) st.textContent = `speaking through ${res.active || hostActive}`;
     addThought("act", `mouth → ${res.active || hostActive}`);
     fetch("/api/state").then((r) => r.json()).then(renderState).catch(() => {});
+  };
+}
+
+if ($("host-train")) {
+  $("host-train").onclick = async () => {
+    const st = $("train-status");
+    const btn = $("host-train");
+    const targets = [];
+    if ($("tr-local") && $("tr-local").checked) targets.push("local");
+    if ($("tr-ollama") && $("tr-ollama").checked) targets.push("ollama");
+    if ($("tr-hoster") && $("tr-hoster").checked) targets.push("hoster");
+    if (!targets.length) {
+      if (st) st.textContent = "pick at least one target";
+      return;
+    }
+    if (st) st.textContent = "training…";
+    btn.disabled = true;
+    const res = await fetch("/api/train", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targets }),
+    }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e) }));
+    btn.disabled = false;
+    const bits = [];
+    const results = res.results || {};
+    for (const k of targets) {
+      const row = results[k] || {};
+      const dist = row.distill || {};
+      if (row.ok) bits.push(`${k}: ${row.model || row.note || row.path || "ok"}`);
+      else bits.push(`${k}: ${row.error || res.error || "failed"}`);
+      if (dist.samples) bits.push(`distill ${k} ×${dist.samples}`);
+    }
+    if (res.file) bits.push(`jsonl ${res.pairs || 0} pairs`);
+    if (st) st.textContent = bits.join(" · ") || (res.error || "done");
+    addThought("act", st ? st.textContent : "train");
+    fetch("/api/state").then((r) => r.json()).then(renderState).catch(() => {});
+    loadHosts();
+  };
+}
+
+if ($("mouth-chip")) {
+  $("mouth-chip").onclick = () => {
+    showTab("hosts");
+    loadHosts();
   };
 }
 
@@ -1134,6 +1208,7 @@ function openPalette() {
     { title: "Import chats", sub: "WhatsApp / ChatGPT / Claude", run: () => $("import-file").click() },
     { title: "Transfer prompt", sub: "import tab", run: () => showTab("import") },
     { title: "Hosts / LLM mouths", sub: "Ollama · OpenRouter · LLMHoster", run: () => { showTab("hosts"); loadHosts(); } },
+    { title: "Train models", sub: "CortexGPT · Ollama bake · LLMHoster distill", run: () => send("Train models") },
     { title: "Compare", sub: "/compare", run: () => { input.value = "Compare "; input.focus(); } },
     { title: "New note", sub: "/note", run: () => { input.value = "Note: "; input.focus(); } },
     { title: "Add task", sub: "/todo", run: () => { input.value = "Todo: "; input.focus(); } },
@@ -1253,7 +1328,7 @@ fetch("/api/prompts")
       b.type = "button";
       b.textContent = p.title;
       b.onclick = () => {
-        if (p.body.trim() === "Improve yourself") send(p.body);
+        if (p.body.trim() === "Improve yourself" || p.body.trim() === "Train models") send(p.body);
         else {
           input.value = p.body;
           input.focus();

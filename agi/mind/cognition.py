@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 _HIGH_CONFIDENCE = {
     "identity", "architecture", "math", "remember", "recall", "greet",
-    "goals", "improve", "update", "teach", "forget", "search", "time", "convert",
+    "goals", "improve", "train", "update", "teach", "forget", "search", "time", "convert",
     "summarize", "hash", "code",
 }
 
@@ -43,9 +43,14 @@ def classify(text: str) -> str:
         return "task"
     if re.search(r"\b(who are you|what are you|your name|about yourself|what is cortex(?:\s+agi)?)\b", t):
         return "identity"
+    if re.search(
+        r"\b(train(?:\s+(?:on|via|with|the|models?|now|ollama|hoster))+|bake (?:a |the )?model|distill)\b",
+        t,
+    ) or re.match(r"^train$", t):
+        return "train"
     if re.search(r"\b(how do you work|architecture|your (brain|mind|model)|safetensors|gguf|ollama|openrouter|hoster)\b", t):
         return "architecture"
-    if re.search(r"\b(improve yourself|run a cycle|self[- ]improve|train now|evolve)\b", t):
+    if re.search(r"\b(improve yourself|run a cycle|self[- ]improve|evolve)\b", t):
         return "improve"
     if re.search(r"\b(check for updates|update yourself|upgrade cortex|apply update|pull latest)\b", t) or re.match(
         r"^update(?:\s+yourself)?$", t
@@ -246,6 +251,20 @@ class Cognition:
             yield thought("act", "Cycle events: " + ", ".join(e.get("kind", "?") for e in ev))
             reply = self._compose_improve(ev)
             act_note = "improvement cycle"
+        elif intent == "train":
+            yield thought("plan", "Training CortexGPT, baking Ollama cortex-agi, distilling from mouths.")
+            tl = user.lower()
+            targets = []
+            if "ollama" in tl:
+                targets.append("ollama")
+            if "hoster" in tl:
+                targets.append("hoster")
+            if "local" in tl or "core" in tl:
+                targets.append("local")
+            result = agi.train(targets or None)
+            yield thought("act", "Train targets: " + ", ".join(result.get("targets") or []))
+            reply = self._compose_train(result)
+            act_note = "train mouths"
         elif intent == "update":
             yield thought("plan", "Checking origin for a newer Cortex AGI.")
             reply = self._compose_update(user)
@@ -421,7 +440,7 @@ class Cognition:
             "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
             "5. **Teach** me with `learn this: Title — body` and I persist an article.\n"
             "6. **Speak** through the local core, or an optional mouth: Ollama, Cortex LLMHoster, OpenRouter. "
-            "Those are OpenAI-compatible chat backends. I stay the mind; they do not train me.\n"
+            "I stay the mind. `train models` distills those mouths into CortexGPT, bakes Ollama `cortex-agi`, and writes data/train.jsonl for llama.cpp.\n"
             "7. **Update** from GitHub with `check for updates` / `update yourself`. Fast-forward only; data/ and weights stay.\n\n"
             f"Loader: source={info.get('source')} backend={info.get('backend')} "
             f"params={info.get('params') or neural.get('params')}. "
@@ -576,6 +595,24 @@ class Cognition:
             f"and train on it in the background. Persist a fact with `remember that …`, "
             f"teach an article with `learn this:`, or grow on purpose with `improve yourself`."
         )
+
+    def _compose_train(self, result: dict) -> str:
+        lines = ["Training pass:"]
+        for k, v in (result.get("results") or {}).items():
+            dist = v.get("distill") or {}
+            if v.get("ok"):
+                extra = v.get("model") or v.get("note") or v.get("path") or "ok"
+                lines.append(f"- **{k}**: {extra}")
+            else:
+                lines.append(f"- **{k}**: {v.get('error') or 'failed'}")
+            if dist.get("samples"):
+                lines.append(f"  distilled {dist['samples']} sample(s) into CortexGPT")
+            elif dist.get("error"):
+                lines.append(f"  distill: {dist['error']}")
+        lines.append(f"Wrote `{result.get('file')}` ({result.get('pairs')} pairs).")
+        if not result.get("ok"):
+            lines.append("Nothing landed. Probe the mouth, pick a model, try again.")
+        return "\n".join(lines)
 
     def _compose_improve(self, events: list[dict]) -> str:
         if not events:

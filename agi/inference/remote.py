@@ -72,10 +72,22 @@ def _json(url: str, kind: str, key: str = "", body: dict | None = None, timeout:
             return e.code, {"error": raw.decode("utf-8", errors="replace")[:400] or str(e)}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return 0, {"error": str(e)}
+    text = raw.decode("utf-8", errors="replace")
     try:
-        return code, json.loads(raw.decode("utf-8", errors="replace"))
+        return code, json.loads(text)
     except json.JSONDecodeError:
-        return code, {"error": "not json", "text": raw.decode("utf-8", errors="replace")[:200]}
+        last = None
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                last = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+        if last is not None:
+            return code, last
+        return code, {"error": "not json", "text": text[:200]}
 
 
 class RemoteChat:
