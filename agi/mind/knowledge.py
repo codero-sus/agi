@@ -33,17 +33,17 @@ ARTICLES: list[Article] = [
         "Self-improvement here is not a slogan. After each turn Cortex AGI stores episodes, "
         "extracts facts, critiques its reply, and may write a reusable skill. Periodically it "
         "runs a self-eval battery, trains CortexGPT on its own traces, and evolves its constitution. "
-        "Weights are written to model/model.safetensors. Training runs in a background thread "
+        "Weights are written to model/cortex.safetensors. Training runs in a background thread "
         "so replies stay fast.",
     ),
     Article(
         "Neural core",
         ("model", "safetensors", "gguf", "gpt", "inference"),
         "The custom server loads model/model.gguf (llama.cpp) or model/model.safetensors "
-        "(Llama, GPT-2, or CortexGPT). If neither file exists, a numpy GPT trains online and "
-        "becomes the safetensors checkpoint. Generation uses a KV cache; learning uses Adam. "
-        "Ollama and Cortex LLMHoster are mouths. Train models distills their replies into CortexGPT, "
-        "bakes an Ollama model named cortex-agi, and writes data/train.jsonl for llama.cpp.",
+        "(Hugging Face Llama / GPT-2). CortexGPT always trains and checkpoints to "
+        "model/cortex.safetensors. Generation uses a KV cache; learning uses Adam. "
+        "Ollama and Cortex LLMHoster are mouths: pick one to chat through it, or train models "
+        "to distill their replies into CortexGPT and bake an Ollama model named cortex-agi.",
     ),
     Article(
         "Working memory vs long-term memory",

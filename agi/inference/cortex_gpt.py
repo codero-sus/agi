@@ -1,4 +1,4 @@
-"""A compact GPT that lives in numpy, trains online, and serializes to safetensors.
+"""A compact GPT that lives in numpy, trains online, and checkpoints to cortex.safetensors.
 
 Efficiency:
   - KV-cached generation (prompt encoded once)
@@ -24,7 +24,7 @@ from agi.config import (
     CORTEX_HEADS,
     CORTEX_LAYERS,
     CORTEX_LR,
-    SAFETENSORS_PATH,
+    CORTEX_SAFETENSORS_PATH,
 )
 
 from .tokenizer import BYTE_VOCAB, ByteTokenizer
@@ -415,7 +415,7 @@ class CortexGPT:
 
     # ------------------------------------------------------------------ io
     def save(self, path: Path | None = None) -> Path:
-        path = path or SAFETENSORS_PATH
+        path = path or CORTEX_SAFETENSORS_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
         tensors = {k: np.ascontiguousarray(v, dtype=np.float32) for k, v in self.params.items()}
         try:

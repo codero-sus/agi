@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Iterator
 
-from agi.config import GGUF_PATH, MODEL_DIR, SAFETENSORS_PATH
+from agi.config import CORTEX_SAFETENSORS_PATH, GGUF_PATH, MODEL_DIR, SAFETENSORS_PATH
 from agi.improve.loop import SelfImprovement
 from agi.inference.loader import ModelEngine, load_engine
 from agi.mind.cognition import Cognition
@@ -142,6 +142,8 @@ class AGI:
             "core": {
                 "gguf": GGUF_PATH.exists(),
                 "safetensors": SAFETENSORS_PATH.exists(),
+                "cortex": CORTEX_SAFETENSORS_PATH.exists(),
+                "checkpoint": str(CORTEX_SAFETENSORS_PATH),
                 "model_dir": str(MODEL_DIR),
             },
             "hosts": get_hosts().snapshot(),

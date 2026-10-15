@@ -1,9 +1,12 @@
 """Model discovery and a single ModelEngine facade.
 
-Priority:
-  1. model/model.gguf          (llama.cpp if installed; metadata always)
-  2. model/model.safetensors   (external HF llama/gpt2, or Cortex AGI's own GPT)
-  3. bootstrap CortexGPT       (trains online, writes model.safetensors)
+Priority for *speaking*:
+  1. optional remote mouth (Ollama / LLMHoster / OpenRouter)
+  2. model/model.gguf
+  3. model/model.safetensors (external HF llama/gpt2)
+  4. CortexGPT (bootstrap or checkpoint)
+
+CortexGPT always trains and checkpoints to model/cortex.safetensors.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from pathlib import Path
 from typing import Iterator
 
 from agi.config import (
+    CORTEX_SAFETENSORS_PATH,
     GGUF_PATH,
     MAX_NEW_TOKENS,
     MODEL_DIR,
@@ -61,30 +65,64 @@ class ModelEngine:
         self.trainer = BackgroundTrainer(self)
         self._discover()
 
+    def _restore_cortex(self) -> bool:
+        """Load CortexGPT weights. Prefer cortex.safetensors; migrate legacy model.safetensors."""
+        for path in (CORTEX_SAFETENSORS_PATH, SAFETENSORS_PATH):
+            if not path.exists():
+                continue
+            loaded = CortexGPT.load(path)
+            if loaded is None:
+                continue
+            self.cortex = loaded
+            if path != CORTEX_SAFETENSORS_PATH:
+                try:
+                    self.cortex.save(CORTEX_SAFETENSORS_PATH)
+                except Exception:
+                    pass
+            return True
+        return False
+
+    def _cortex_info(self, source: str, note: str | None = None) -> EngineInfo:
+        detail = {
+            "params": self.cortex.param_count(),
+            "steps": self.cortex.steps,
+            "checkpoint": str(CORTEX_SAFETENSORS_PATH),
+            "architecture": "cortex-gpt",
+        }
+        if note:
+            detail["note"] = note
+        return EngineInfo(source, "cortex-gpt", True, detail)
+
     def _discover(self) -> None:
+        restored = self._restore_cortex()
         if GGUF_PATH.exists():
             self._load_gguf(GGUF_PATH)
             return
         if SAFETENSORS_PATH.exists():
-            self._load_safetensors(SAFETENSORS_PATH)
+            kind, runner, info = try_load_external_safetensors(SAFETENSORS_PATH)
+            if runner is not None and kind in ("llama", "gpt2"):
+                self.external = runner
+                self.info = EngineInfo("safetensors", f"numpy-{kind}", True, info)
+                self._disk_info = self.info
+                return
+            if kind == "cortex-gpt" or restored:
+                self.info = self._cortex_info("cortex")
+                self._disk_info = self.info
+                return
+        if restored:
+            self.info = self._cortex_info("cortex")
+            self._disk_info = self.info
             return
-        self.info = EngineInfo(
-            source="bootstrap",
-            backend="cortex-gpt",
-            ready=True,
-            detail={
-                "params": self.cortex.param_count(),
-                "steps": self.cortex.steps,
-                "note": "No model.gguf or model.safetensors found. "
-                "Cortex AGI is running its own neural core and will write "
-                "model/model.safetensors as it trains.",
-            },
+        self.info = self._cortex_info(
+            "bootstrap",
+            "No model.gguf. CortexGPT will write model/cortex.safetensors as it trains.",
         )
         self._disk_info = self.info
 
     def reload(self) -> EngineInfo:
         self.external = None
         self.remote = None
+        self.cortex = CortexGPT()
         self._discover()
         return self.info
 
@@ -167,6 +205,23 @@ class ModelEngine:
 
     def has_external_lm(self) -> bool:
         return self.remote is not None or self.external is not None
+
+    def has_remote(self) -> bool:
+        return self.remote is not None
+
+    def chat(self, messages: list[dict], max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> str:
+        """Chat through the selected mouth, else flatten to local generate."""
+        remote = self.remote
+        if remote is not None:
+            return remote.chat(messages, max_new=max_new, temperature=temperature)
+        parts = []
+        for m in messages:
+            role = m.get("role") or "user"
+            content = (m.get("content") or "").strip()
+            if content:
+                parts.append(f"{role}: {content}")
+        parts.append("assistant:")
+        return self.generate("\n".join(parts), max_new=max_new, temperature=temperature)
 
     def generate(self, prompt: str, max_new: int = MAX_NEW_TOKENS, temperature: float = TEMPERATURE) -> str:
         self.stop.clear()

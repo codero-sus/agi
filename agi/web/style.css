@@ -339,7 +339,11 @@ textarea:focus { border-color: var(--mint); }
 .host-card.live h3 .dot { background: var(--mint); box-shadow: 0 0 8px var(--mint); }
 .host-card.off h3 .dot { background: var(--danger); }
 .host-card .find { margin-bottom: 6px; }
+.host-card.train { border-color: rgba(255, 176, 32, 0.35); }
+.host-card.train h3 { color: var(--amber); }
 .host-card.train .tog { font-size: 12px; margin: 4px 0; }
+.host-card { cursor: pointer; }
+.host-card input, .host-card select, .host-card button, .host-card label { cursor: auto; }
 .import-json {
   width: 100%;
   min-height: 130px;

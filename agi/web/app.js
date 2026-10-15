@@ -621,7 +621,8 @@ function renderState(s) {
       ["source", engine.source],
       ["backend", engine.backend],
       ["gguf", core.gguf ? "present" : "drop model/model.gguf"],
-      ["safetensors", core.safetensors ? "present" : "will write as I train"],
+      ["cortex.safetensors", core.cortex ? "checkpointed" : "will write as I train"],
+      ["model.safetensors", core.safetensors ? "present" : "drop HF weights"],
       ["dir", core.model_dir],
     ];
     for (const [k, v] of rows) {
@@ -644,7 +645,7 @@ function renderState(s) {
     $("mouth-pill").textContent = mouthLabel;
     $("mouth-pill").className = "pill" + (mouth === "local" ? " dim" : "");
   }
-  if ($("mouth-chip")) $("mouth-chip").textContent = mouth;
+  if ($("mouth-chip")) $("mouth-chip").textContent = mouthLabel;
   $("turn-pill").textContent = `turns ${ident.turns ?? 0}`;
   $("cycle-pill").textContent = `cycles ${ident.cycles ?? 0}`;
   const loss = neural.last_loss;
@@ -1016,6 +1017,8 @@ function fillSelect(sel, models, current) {
   if (current) sel.value = current;
 }
 
+const HOST_NAMES = { local: "local core", ollama: "Ollama", hoster: "LLMHoster", openrouter: "OpenRouter" };
+
 function renderHostPicks(active) {
   hostActive = active || "local";
   const box = $("host-picks");
@@ -1024,11 +1027,15 @@ function renderHostPicks(active) {
   for (const k of ["local", "ollama", "hoster", "openrouter"]) {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = k;
+    b.textContent = HOST_NAMES[k] || k;
     if (k === hostActive) b.classList.add("on");
-    b.onclick = () => renderHostPicks(k);
+    b.onclick = () => {
+      renderHostPicks(k);
+      saveMouth();
+    };
     box.appendChild(b);
   }
+  markHostCards(hostActive);
 }
 
 function markHostCards(active, probe) {
@@ -1046,7 +1053,7 @@ function applyHostSnap(d) {
   hostActive = d.active || "local";
   renderHostPicks(hostActive);
   markHostCards(hostActive);
-  if ($("mouth-chip")) $("mouth-chip").textContent = hostActive;
+  if ($("mouth-chip")) $("mouth-chip").textContent = HOST_NAMES[hostActive] || hostActive;
   const ol = d.ollama || {};
   const ho = d.hoster || {};
   const or = d.openrouter || {};
@@ -1084,6 +1091,26 @@ async function loadHosts() {
   if (d) applyHostSnap(d);
 }
 
+async function saveMouth() {
+  const st = $("host-status");
+  if (st) st.textContent = "binding…";
+  const res = await fetch("/api/hosts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(hostPayload(true)),
+  }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+  if (res.error) {
+    if (st) st.textContent = res.error;
+    return res;
+  }
+  applyHostSnap(res);
+  const name = HOST_NAMES[res.active || hostActive] || res.active || hostActive;
+  if (st) st.textContent = `chatting through ${name}`;
+  addThought("act", `mouth → ${res.active || hostActive}`);
+  fetch("/api/state").then((r) => r.json()).then(renderState).catch(() => {});
+  return res;
+}
+
 if ($("host-probe")) {
   $("host-probe").onclick = async () => {
     const st = $("host-status");
@@ -1112,25 +1139,22 @@ if ($("host-probe")) {
     markHostCards(hostActive, res);
   };
 }
-if ($("host-save")) {
-  $("host-save").onclick = async () => {
-    const st = $("host-status");
-    if (st) st.textContent = "binding…";
-    const res = await fetch("/api/hosts", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(hostPayload(true)),
-    }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
-    if (res.error) {
-      if (st) st.textContent = res.error;
-      return;
-    }
-    applyHostSnap(res);
-    if (st) st.textContent = `speaking through ${res.active || hostActive}`;
-    addThought("act", `mouth → ${res.active || hostActive}`);
-    fetch("/api/state").then((r) => r.json()).then(renderState).catch(() => {});
-  };
-}
+if ($("host-save")) $("host-save").onclick = () => saveMouth();
+["ollama-model", "hoster-model", "or-model", "or-model-sel"].forEach((id) => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener("change", () => {
+    const map = { "ollama-model": "ollama", "hoster-model": "hoster", "or-model": "openrouter", "or-model-sel": "openrouter" };
+    if (hostActive === map[id]) saveMouth();
+  });
+});
+document.querySelectorAll(".host-card[data-kind]").forEach((c) => {
+  c.addEventListener("click", (e) => {
+    if (e.target.closest("input, select, button, label, a, textarea")) return;
+    renderHostPicks(c.dataset.kind);
+    saveMouth();
+  });
+});
 
 if ($("host-train")) {
   $("host-train").onclick = async () => {

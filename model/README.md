@@ -1,16 +1,21 @@
 # Model directory
 
-The custom server looks here, in this order:
+The custom server looks here, in this order, for **speech**:
 
 1. `model.gguf` — llama.cpp via `llama-cpp-python` when installed. GGUF metadata is always parsed.
-2. `model.safetensors` — Llama / GPT-2 / Qwen-style Hugging Face weights, **or** Cortex AGI's own numpy GPT.
+2. `model.safetensors` — Llama / GPT-2 Hugging Face weights (forward-only numpy).
+3. CortexGPT — the mind's own numpy transformer.
 
-Optional companions:
+CortexGPT **always** trains in the background and checkpoints itself to:
 
-- `config.json` — Hugging Face architecture config
-- `tokenizer.json` — Hugging Face tokenizer
-- `model.config.json` — written by CortexGPT when it checkpoints itself
+- `cortex.safetensors` — weights
+- `cortex.config.json` — architecture, step count, recent loss
 
-If neither weight file exists, Cortex AGI boots its own neural core and **writes** `model.safetensors` as it trains on your conversations.
+Legacy `model.safetensors` files that are CortexGPT layouts are loaded once and rewritten to `cortex.safetensors`.
 
-Drop a GGUF or safetensors file here and restart (or `POST /api/reload-model`).
+Optional companions for Hugging Face dumps:
+
+- `config.json`
+- `tokenizer.json`
+
+Drop a GGUF or HF safetensors file here and restart (or `POST /api/reload-model`). Pick Ollama or Cortex LLMHoster in the hosts tab to chat through that model instead.

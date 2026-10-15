@@ -21,8 +21,10 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 
 GGUF_NAME = "model.gguf"
 SAFETENSORS_NAME = "model.safetensors"
+CORTEX_SAFETENSORS_NAME = "cortex.safetensors"
 GGUF_PATH = MODEL_DIR / GGUF_NAME
 SAFETENSORS_PATH = MODEL_DIR / SAFETENSORS_NAME
+CORTEX_SAFETENSORS_PATH = MODEL_DIR / CORTEX_SAFETENSORS_NAME
 CONFIG_PATH = MODEL_DIR / "config.json"
 TOKENIZER_PATH = MODEL_DIR / "tokenizer.json"
 
