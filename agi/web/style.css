@@ -203,17 +203,25 @@ body.focus .desk { grid-template-columns: 1fr; }
 
 #composer { padding: 10px 14px 14px; border-top: 1px solid var(--line2); }
 .composer-meta { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-.mouth-chip {
-  flex: 0 0 auto;
-  background: var(--mint-dim);
-  border: 1px solid var(--line);
-  color: var(--mint);
-  font: 11px "IBM Plex Mono", monospace;
-  padding: 5px 10px;
-  border-radius: 999px;
-  cursor: pointer;
+.mouth-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
 }
-.mouth-chip:hover { color: var(--text); }
+.mouth-bar select {
+  height: 32px;
+  background: #0a0d14;
+  color: var(--mint);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 11px "IBM Plex Mono", monospace;
+  padding: 0 8px;
+  outline: none;
+}
+#mouth-sel { min-width: 148px; }
+#mouth-model { flex: 1; min-width: 0; }
+.mouth-bar select:disabled { color: var(--muted); border-color: var(--line2); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; flex: 1; }
 .chips button, .ghost {
   background: transparent;

@@ -81,6 +81,10 @@ class Hosts:
         d["hoster"]["key"] = _mask(d["hoster"].get("key") or "")
         d["hoster"]["has_key"] = bool(self.data["hoster"].get("key"))
         d["kinds"] = list(KINDS)
+        for k in ("ollama", "hoster", "openrouter"):
+            models = self.data[k].get("models") or []
+            if isinstance(models, list):
+                d[k]["models"] = [m for m in models if isinstance(m, str)][:80]
         return d
 
     def patch(self, body: dict) -> dict:
@@ -147,6 +151,12 @@ class Hosts:
             "hoster": probe("hoster", hoster_url, hoster_key),
             "openrouter": probe("openrouter", OPENROUTER_BASE, or_key) if or_key else {"ok": False, "kind": "openrouter", "models": [], "error": "no API key", "ms": 0},
         }
+        with self._lock:
+            for k in ("ollama", "hoster", "openrouter"):
+                models = (out.get(k) or {}).get("models") or []
+                if models:
+                    self.data[k]["models"] = list(models)[:80]
+            self._save()
         return out
 
 

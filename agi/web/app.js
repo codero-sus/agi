@@ -645,7 +645,7 @@ function renderState(s) {
     $("mouth-pill").textContent = mouthLabel;
     $("mouth-pill").className = "pill" + (mouth === "local" ? " dim" : "");
   }
-  if ($("mouth-chip")) $("mouth-chip").textContent = mouthLabel;
+  syncMouthBar(hosts);
   $("turn-pill").textContent = `turns ${ident.turns ?? 0}`;
   $("cycle-pill").textContent = `cycles ${ident.cycles ?? 0}`;
   const loss = neural.last_loss;
@@ -1049,11 +1049,32 @@ function markHostCards(active, probe) {
   });
 }
 
+function syncMouthBar(d) {
+  const sel = $("mouth-sel");
+  const mod = $("mouth-model");
+  const active = (d && d.active) || hostActive || "local";
+  if (sel && sel.value !== active) sel.value = active;
+  const cfg = (d && d[active]) || {};
+  if (mod) {
+    if (active === "local") {
+      fillSelect(mod, ["cortex.safetensors"], "cortex.safetensors");
+      mod.disabled = true;
+    } else {
+      mod.disabled = false;
+      fillSelect(mod, cfg.models || [], cfg.model || "");
+    }
+  }
+  if ($("input")) {
+    if (active === "local") $("input").placeholder = "Message Cortex AGI…  @Name to run an agent, /spawn to create one";
+    else $("input").placeholder = `Chat via ${HOST_NAMES[active] || active}${cfg.model ? " · " + cfg.model : ""}…`;
+  }
+}
+
 function applyHostSnap(d) {
   hostActive = d.active || "local";
   renderHostPicks(hostActive);
   markHostCards(hostActive);
-  if ($("mouth-chip")) $("mouth-chip").textContent = HOST_NAMES[hostActive] || hostActive;
+  syncMouthBar(d);
   const ol = d.ollama || {};
   const ho = d.hoster || {};
   const or = d.openrouter || {};
@@ -1089,6 +1110,7 @@ function hostPayload(includeActive) {
 async function loadHosts() {
   const d = await fetch("/api/hosts").then((r) => r.json()).catch(() => null);
   if (d) applyHostSnap(d);
+  probeHosts(true);
 }
 
 async function saveMouth() {
@@ -1111,35 +1133,59 @@ async function saveMouth() {
   return res;
 }
 
-if ($("host-probe")) {
-  $("host-probe").onclick = async () => {
-    const st = $("host-status");
-    if (st) st.textContent = "probing…";
-    const res = await fetch("/api/hosts/probe", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(hostPayload(false)),
-    }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
-    const bits = [];
-    for (const k of ["local", "ollama", "hoster", "openrouter"]) {
-      const p = res[k] || {};
-      bits.push(`${k}:${p.ok ? "ok" : "off"}${p.models && p.models.length ? " " + p.models.slice(0, 3).join(",") : ""}${p.error ? " " + p.error : ""}`);
-      if (k === "ollama") fillSelect($("ollama-model"), p.models || [], $("ollama-model").value);
-      if (k === "hoster") fillSelect($("hoster-model"), p.models || [], $("hoster-model").value);
-      if (k === "openrouter" && p.models && p.models.length) {
-        const sel = $("or-model-sel");
-        if (sel) {
-          sel.hidden = false;
-          fillSelect(sel, p.models, $("or-model").value);
-          sel.onchange = () => { $("or-model").value = sel.value; };
-        }
+async function probeHosts(quiet) {
+  const st = $("host-status");
+  if (st && !quiet) st.textContent = "probing…";
+  const res = await fetch("/api/hosts/probe", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(hostPayload(false)),
+  }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+  const bits = [];
+  for (const k of ["local", "ollama", "hoster", "openrouter"]) {
+    const p = res[k] || {};
+    bits.push(`${k}:${p.ok ? "ok" : "off"}${p.models && p.models.length ? " " + p.models.slice(0, 3).join(",") : ""}${p.error ? " " + p.error : ""}`);
+    const cur = k === "ollama" ? $("ollama-model") : k === "hoster" ? $("hoster-model") : null;
+    if (cur) {
+      fillSelect(cur, p.models || [], cur.value);
+      if (!cur.value && p.models && p.models[0]) cur.value = p.models[0];
+    }
+    if (k === "openrouter" && p.models && p.models.length) {
+      const sel = $("or-model-sel");
+      if (sel) {
+        sel.hidden = false;
+        fillSelect(sel, p.models, $("or-model").value);
+        sel.onchange = () => { $("or-model").value = sel.value; };
       }
     }
-    if (st) st.textContent = bits.join(" · ");
-    markHostCards(hostActive, res);
+  }
+  if (st) st.textContent = bits.join(" · ");
+  markHostCards(hostActive, res);
+  const snap = { active: hostActive, ollama: { model: ($("ollama-model") && $("ollama-model").value) || "", models: (res.ollama || {}).models || [] }, hoster: { model: ($("hoster-model") && $("hoster-model").value) || "", models: (res.hoster || {}).models || [] }, openrouter: { model: ($("or-model") && $("or-model").value) || "", models: (res.openrouter || {}).models || [] } };
+  syncMouthBar(snap);
+  return res;
+}
+
+if ($("host-probe")) $("host-probe").onclick = () => probeHosts(false);
+if ($("host-save")) $("host-save").onclick = () => saveMouth();
+if ($("mouth-cfg")) $("mouth-cfg").onclick = () => { showTab("hosts"); loadHosts(); };
+if ($("mouth-sel")) {
+  $("mouth-sel").onchange = async () => {
+    hostActive = $("mouth-sel").value;
+    renderHostPicks(hostActive);
+    if (hostActive !== "local") await probeHosts(true);
+    await saveMouth();
   };
 }
-if ($("host-save")) $("host-save").onclick = () => saveMouth();
+if ($("mouth-model")) {
+  $("mouth-model").onchange = () => {
+    const v = $("mouth-model").value;
+    if (hostActive === "ollama" && $("ollama-model")) $("ollama-model").value = v;
+    if (hostActive === "hoster" && $("hoster-model")) $("hoster-model").value = v;
+    if (hostActive === "openrouter" && $("or-model")) $("or-model").value = v;
+    saveMouth();
+  };
+}
 ["ollama-model", "hoster-model", "or-model", "or-model-sel"].forEach((id) => {
   const el = $(id);
   if (!el) return;
@@ -1193,12 +1239,7 @@ if ($("host-train")) {
   };
 }
 
-if ($("mouth-chip")) {
-  $("mouth-chip").onclick = () => {
-    showTab("hosts");
-    loadHosts();
-  };
-}
+
 
 async function loadVault() {
   const d = await fetch("/api/vault").then((r) => r.json());

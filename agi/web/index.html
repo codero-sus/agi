@@ -76,12 +76,21 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex agi</div>
-            <div class="body">Pick a mouth in <strong>hosts</strong> to chat through Ollama or Cortex LLMHoster. I stay the mind and checkpoint CortexGPT to <code>model/cortex.safetensors</code>. <code>/train</code> bakes and distills.</div>
+            <div class="body">Chat model is the bar under the thread — local CortexGPT, Ollama, or Cortex LLMHoster. I checkpoint myself to <code>model/cortex.safetensors</code>. Hosts tab trains those mouths.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
+          <div class="mouth-bar">
+            <select id="mouth-sel" title="Chat through this mouth">
+              <option value="local">local · CortexGPT</option>
+              <option value="ollama">Ollama</option>
+              <option value="hoster">LLMHoster</option>
+              <option value="openrouter">OpenRouter</option>
+            </select>
+            <select id="mouth-model" title="Model"></select>
+            <button type="button" id="mouth-cfg" class="ghost sm" title="Hosts &amp; train">hosts</button>
+          </div>
           <div class="composer-meta">
-            <button type="button" id="mouth-chip" class="mouth-chip" title="Change mouth">local</button>
             <div class="chips" id="chips"></div>
           </div>
           <div id="attach-strip" class="attach-strip"></div>
