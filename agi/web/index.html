@@ -76,7 +76,7 @@
         <div id="log" class="log">
           <div class="msg agi">
             <div class="who">cortex agi</div>
-            <div class="body">I am the mind. Mouths speak. Train CortexGPT, bake Ollama <code>cortex-agi</code>, distill from LLMHoster. Keys never leave this process. <code>/train</code> or the hosts tab.</div>
+            <div class="body">Pick a mouth in <strong>hosts</strong> to chat through Ollama or Cortex LLMHoster. I stay the mind and checkpoint CortexGPT to <code>model/cortex.safetensors</code>. <code>/train</code> bakes and distills.</div>
           </div>
         </div>
         <form id="composer" autocomplete="off">
@@ -185,7 +185,7 @@
         </div>
         <div class="tab-body" id="tab-hosts">
           <h2>Mouths</h2>
-          <p class="lede">Cortex AGI is the mind. These speak. Train bakes Ollama <code>cortex-agi</code>, distills LLMHoster/Ollama into CortexGPT, writes <code>data/train.jsonl</code>. Keys never leave this process.</p>
+          <p class="lede">Tap a mouth to chat through it. CortexGPT still trains to <code>model/cortex.safetensors</code>. Train bakes Ollama <code>cortex-agi</code> and distills hoster replies. Keys never leave this process.</p>
           <div id="host-picks" class="host-picks"></div>
           <div class="host-card" data-kind="ollama" id="card-ollama">
             <h3><i class="dot"></i> Ollama</h3>
@@ -224,7 +224,7 @@
         </div>
         <div class="tab-body" id="tab-mind">
           <h2>Core</h2>
-          <p class="lede">Odysseus catalogues 270 downloads. I grow one core. Drop <code>model/model.gguf</code> or <code>model.safetensors</code> here.</p>
+          <p class="lede">One core. Drop <code>model/model.gguf</code> or Hugging Face <code>model.safetensors</code>. CortexGPT checkpoints itself to <code>model/cortex.safetensors</code>.</p>
           <ul class="kv" id="core-kv"></ul>
           <h2>Identity</h2>
           <p class="lede" id="self-desc">Loading mind…</p>

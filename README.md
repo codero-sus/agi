@@ -7,9 +7,10 @@ Cortex AGI is not a wrapper around OpenAI. It loads weights from this repo:
 | file | backend |
 |---|---|
 | `model/model.gguf` | llama.cpp (`llama-cpp-python`) |
-| `model/model.safetensors` | numpy Llama / GPT-2, or Cortex AGI's own GPT |
+| `model/model.safetensors` | numpy Llama / GPT-2 (Hugging Face) |
+| `model/cortex.safetensors` | CortexGPT — always the self-trained checkpoint |
 
-If neither file is present, it boots **CortexGPT** (a numpy transformer), trains on every conversation, and checkpoints itself to `model/model.safetensors`.
+If no GGUF/HF file is present, it boots **CortexGPT** (a numpy transformer), trains on every conversation, and checkpoints itself to `model/cortex.safetensors`.
 
 ## Run
 
@@ -33,7 +34,7 @@ Optional GGUF runtime:
 pip install llama-cpp-python
 ```
 
-Drop `model.gguf` or `model.safetensors` into `model/` and restart, or `POST /api/reload-model`.
+Drop `model.gguf` or Hugging Face `model.safetensors` into `model/` and restart, or `POST /api/reload-model`. CortexGPT always writes `model/cortex.safetensors`.
 
 ## Efficiency (v0.2)
 
@@ -82,14 +83,14 @@ GET  /api/import/prompt
 POST /api/import/json   { "text": "{ ... cortex_export ... }" }
 ```
 
-## Mouths (v0.12)
+## Mouths (v0.13)
 
-Cortex AGI stays the mind. Optional **OpenAI-compatible** backends speak. **Train** uses them as teachers:
+Cortex AGI stays the mind. Pick a mouth in the **hosts** tab to **chat** through it. **Train** also uses Ollama / LLMHoster as teachers.
 
-- **local** — Adam on CortexGPT (`model/model.safetensors`)
-- **Ollama** — `POST /api/create` bakes `cortex-agi` (FROM + SYSTEM + few-shot), then distills replies into CortexGPT
-- **LLMHoster** — writes `data/train.jsonl` for llama.cpp finetune, POSTs a fine-tune job if the hoster exposes one, distills into CortexGPT
-- **OpenRouter** — speak only (keys never leave this process)
+- **local** — speak with GGUF / HF / CortexGPT; Adam writes `model/cortex.safetensors`
+- **Ollama** — chat via `/v1/chat/completions` (or `/api/chat`). Train: `POST /api/create` bakes `cortex-agi`, then distills into CortexGPT
+- **LLMHoster** — chat via `/v1/chat/completions`. Train: distill into CortexGPT, write `data/train.jsonl`, POST a fine-tune job if the hoster exposes one
+- **OpenRouter** — chat only (keys never leave this process)
 
 | mouth | default | auth |
 |---|---|---|
@@ -204,7 +205,7 @@ After every turn Cortex AGI:
 1. Stores **episodic memory** (the conversation)
 2. Extracts **semantic facts** (`user name Ada`)
 3. **Critiques** its own reply and may add a lesson / constitution clause
-4. Queues **Adam steps** on CortexGPT (background) → `model/model.safetensors`
+4. Queues **Adam steps** on CortexGPT (background) → `model/cortex.safetensors`
 5. Every few turns: **self-eval battery**, skill synthesis, extra training
 
 Skills live in `skills/` as real Python files the agent can write.

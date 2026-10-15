@@ -7,7 +7,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Callable
 
-from agi.config import CHECKPOINT_EVERY, CORTEX_TRAIN_STEPS, DREAM_IDLE_SEC, SAFETENSORS_PATH
+from agi.config import CHECKPOINT_EVERY, CORTEX_SAFETENSORS_PATH, CORTEX_TRAIN_STEPS, DREAM_IDLE_SEC
 
 if TYPE_CHECKING:
     from agi.inference.loader import ModelEngine
@@ -48,7 +48,7 @@ class BackgroundTrainer:
 
     def flush_save(self) -> None:
         try:
-            self.engine.cortex.save(SAFETENSORS_PATH)
+            self.engine.cortex.save(CORTEX_SAFETENSORS_PATH)
             self.last_save = time.time()
             self._dirty = 0
         except Exception:

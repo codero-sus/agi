@@ -19,6 +19,14 @@ _HIGH_CONFIDENCE = {
     "summarize", "hash", "code",
 }
 
+# Control-plane intents stay local even when a mouth is selected.
+_MOUTH_SKIP = {
+    "identity", "architecture", "math", "improve", "train", "update",
+    "teach", "forget", "search", "time", "convert", "hash",
+    "spawn", "agent", "note", "task", "research", "compare",
+    "remember", "recall", "goals",
+}
+
 
 def classify(text: str) -> str:
     t = text.strip().lower()
@@ -90,6 +98,27 @@ def classify(text: str) -> str:
     if t.endswith("?") or re.match(r"^(what|why|how|when|where|who|is|are|can|does)\b", t):
         return "question"
     return "chat"
+
+
+def build_chat_messages(agi: "AGI", user: str, chain_trace: str = "") -> list[dict]:
+    """OpenAI-style messages for Ollama / LLMHoster / OpenRouter."""
+    sys = agi.identity.system_preamble()
+    facts = agi.memory.all_facts(k=8)
+    if facts:
+        sys += "\nFacts:\n" + "\n".join(f"- {f.subject} {f.predicate} {f.obj}" for f in facts)
+    if chain_trace:
+        sys += "\nReasoning notes (do not repeat verbatim):\n" + chain_trace[:600]
+    msgs: list[dict] = [{"role": "system", "content": sys[:3000]}]
+    dlg = list(agi.memory.recent_dialogue(k=16))
+    if dlg and dlg[-1].get("role") == "user" and (dlg[-1].get("content") or "").strip() == user.strip():
+        dlg = dlg[:-1]
+    for d in dlg[-12:]:
+        role = "assistant" if d.get("role") == "agi" else "user"
+        content = (d.get("content") or "")[:800]
+        if content:
+            msgs.append({"role": role, "content": content})
+    msgs.append({"role": "user", "content": user})
+    return msgs
 
 
 def build_lm_prompt(agi: "AGI", user: str, thoughts: list[str], chain_trace: str = "") -> str:
@@ -310,8 +339,20 @@ class Cognition:
                 yield thought(step.kind, step.text)
             reply = chain_obj.answer
 
-            use_lm = agi.engine.has_external_lm() and intent not in _HIGH_CONFIDENCE
-            if use_lm:
+            use_mouth = agi.engine.has_remote() and intent not in _MOUTH_SKIP
+            use_lm = (not use_mouth) and agi.engine.has_external_lm() and intent not in _HIGH_CONFIDENCE
+            if use_mouth:
+                yield thought("act", f"Chatting through {agi.engine.info.backend}.")
+                messages = build_chat_messages(agi, user, chain_obj.format_trace())
+                try:
+                    sampled = agi.engine.chat(messages, max_new=256)
+                    sampled = _clean_sample(sampled)
+                    if sampled and len(sampled) > 2:
+                        chain_obj.answer = sampled
+                        reply = sampled
+                except Exception as e:
+                    yield thought("act", f"Mouth failed ({e}); using deliberated reply.")
+            elif use_lm:
                 yield thought("act", f"Sampling from {agi.engine.info.backend} conditioned on the chain.")
                 prompt = build_lm_prompt(agi, user, thoughts, chain_obj.format_trace())
                 try:
@@ -422,7 +463,7 @@ class Cognition:
             f"I have taken {s['turns']} turns, run {s['cycles']} improvement cycles, "
             f"and my constitution is at v{s['constitution_version']}. "
             "I get better by remembering, writing skills, critiquing myself, and training CortexGPT "
-            "into model/model.safetensors — in the background, so talking to me stays fast."
+            "into model/cortex.safetensors — in the background, so talking to me stays fast."
         )
 
     def _compose_architecture(self) -> str:
@@ -433,14 +474,14 @@ class Cognition:
         tr = neural.get("trainer") or {}
         return (
             "I run as a local process with a custom inference server — not a hosted API.\n\n"
-            "1. **Load** `model/model.gguf` or `model/model.safetensors` if present.\n"
+            "1. **Load** `model/model.gguf` or `model/model.safetensors` if present; CortexGPT checkpoints to `model/cortex.safetensors`.\n"
             "2. **Think** with System 2: parse, choose a strategy, decompose, retrieve, "
             "hold competing hypotheses, critique, decide.\n"
             "3. **Remember** with a numpy vector index over SQLite episodes.\n"
             "4. **Improve** off the request path — Adam on CortexGPT, KV-cached generation, dream replay.\n"
             "5. **Teach** me with `learn this: Title — body` and I persist an article.\n"
             "6. **Speak** through the local core, or an optional mouth: Ollama, Cortex LLMHoster, OpenRouter. "
-            "I stay the mind. `train models` distills those mouths into CortexGPT, bakes Ollama `cortex-agi`, and writes data/train.jsonl for llama.cpp.\n"
+            "I stay the mind. Pick Ollama or LLMHoster in Hosts to *chat* through that model. `train models` distills those mouths into CortexGPT, bakes Ollama `cortex-agi`, and writes data/train.jsonl for llama.cpp.\n"
             "7. **Update** from GitHub with `check for updates` / `update yourself`. Fast-forward only; data/ and weights stay.\n\n"
             f"Loader: source={info.get('source')} backend={info.get('backend')} "
             f"params={info.get('params') or neural.get('params')}. "
