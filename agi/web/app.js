@@ -222,7 +222,7 @@ function handleSlash(t) {
   const [cmd, ...rest] = t.slice(1).split(/\s+/);
   const arg = rest.join(" ");
   if (cmd === "help") {
-    bubble("agi", "Commands: /new /spawn Name mission /run Name goal /do q /research q /compare a vs b /note t /todo t /search q /teach /train /hosts /update /stop /focus /agents", true);
+    bubble("agi", "Commands: /new /spawn /run /do /research /compare /note /todo /search /teach /train /wiki /math /hosts /update /stop /focus /agents", true);
     return true;
   }
   if (cmd === "new") { newChat(); return true; }
@@ -234,6 +234,18 @@ function handleSlash(t) {
   }
   if (cmd === "train") {
     send(arg ? `train ${arg}` : "Train models");
+    return true;
+  }
+  if (cmd === "wiki" && arg) {
+    send("search memory for " + arg);
+    return true;
+  }
+  if (cmd === "math" && arg) {
+    send("calculate " + arg);
+    return true;
+  }
+  if (cmd === "convert" && arg) {
+    send("convert " + arg);
     return true;
   }
   if (cmd === "update" || cmd === "upgrade") {
@@ -663,7 +675,8 @@ function renderState(s) {
     ["trainer", tr.busy ? `busy q=${tr.queue}` : `idle q=${tr.queue ?? 0}`],
     ["episodes", s.memory?.episodes ?? 0],
     ["facts", s.memory?.facts ?? 0],
-    ["taught", (s.taught || []).length],
+      ["taught", (s.taught || []).length],
+      ["knowledge", (s.knowledge_count && s.knowledge_count.total) || "—"],
   ];
   for (const [k, v] of rows) {
     const li = document.createElement("li");

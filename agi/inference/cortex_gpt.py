@@ -418,16 +418,27 @@ class CortexGPT:
         path = path or CORTEX_SAFETENSORS_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
         tensors = {k: np.ascontiguousarray(v, dtype=np.float32) for k, v in self.params.items()}
+        tmp = path.with_name(path.name + ".tmp")
         try:
             from safetensors.numpy import save_file
 
-            save_file(tensors, str(path))
+            save_file(tensors, str(tmp))
+            tmp.replace(path)
         except Exception:
+            if tmp.exists():
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
             np.savez(path.with_suffix(".npz"), **tensors)
         meta = asdict(self.config)
+        meta["architecture"] = "cortex-gpt"
         meta["steps"] = self.steps
         meta["loss_history"] = self.loss_history[-100:]
-        path.with_suffix(".config.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        cfg = path.with_suffix(".config.json")
+        cfg_tmp = cfg.with_name(cfg.name + ".tmp")
+        cfg_tmp.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        cfg_tmp.replace(cfg)
         return path
 
     @classmethod

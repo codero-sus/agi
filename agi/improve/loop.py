@@ -26,6 +26,15 @@ SELF_TESTS = [
     ("What file does Cortex AGI load for GGUF weights?", ["model.gguf", "model/"]),
     ("Name one of your principles.", ["truth", "improve", "autonomy", "honest"]),
     ("What is gradient descent?", ["loss", "gradient", "weight"]),
+    ("What is the capital of France?", ["paris"]),
+    ("What is the capital of India?", ["delhi"]),
+    ("What is the chemical symbol for gold?", ["au"]),
+    ("What is the capital of Japan?", ["tokyo"]),
+    ("Where does CortexGPT checkpoint?", ["cortex.safetensors"]),
+    ("What is DNA?", ["adenine", "helix", "base", "gene", "nucleotide"]),
+    ("What is Bayes' theorem?", ["posterior", "prior", "likelihood", "p("]),
+    ("HTTP 404 means?", ["not found"]),
+    ("What planet is closest to the Sun?", ["mercury"]),
 ]
 
 
@@ -179,7 +188,8 @@ class SelfImprovement:
             f"{d['role']}: {d['content']}" for d in self.agi.memory.recent_dialogue(k=10)
         )
         taught = "\n".join(f"{a.title}. {a.body}" for a in self.agi.knowledge.taught[-6:])
-        return f"{ident}\nLessons:\n{lessons}\nFacts:\n{facts}\nTaught:\n{taught}\nDialogue:\n{dialogue}\n"
+        world = "\n".join(f"{a.title}. {a.body}" for a in self.agi.knowledge.search("cortex transformer adam", k=4))
+        return f"{ident}\nLessons:\n{lessons}\nFacts:\n{facts}\nTaught:\n{taught}\nWorld:\n{world}\nDialogue:\n{dialogue}\n"
 
     def snapshot(self) -> dict:
         return {

@@ -85,6 +85,9 @@ class ToolRegistry:
         self.register("fetch", "Read public http(s) text. Blocks private/local hosts.", self._fetch)
         self.register("note", "Write a document the mind keeps.", self._note)
         self.register("task", "Add a task to the desk.", self._task)
+        self.register("b64", "Base64 encode or decode a string.", self._b64)
+        self.register("json", "Pretty-print JSON text.", self._json)
+        self.register("wc", "Count characters, words, lines.", self._wc)
 
     def register(self, name: str, description: str, fn: Callable[..., str]) -> None:
         self._tools[name] = fn
@@ -157,3 +160,26 @@ class ToolRegistry:
 
         t = get_desk().add_task(title, source="tool")
         return f"task {t['id']}: {t['title']}"
+
+    def _b64(self, text: str = "", decode: str = "") -> str:
+        import base64
+
+        if decode:
+            try:
+                return base64.b64decode(decode.encode("ascii"), validate=False).decode("utf-8", errors="replace")
+            except Exception as e:
+                return f"b64 decode failed: {e}"
+        return base64.b64encode(text.encode("utf-8")).decode("ascii")
+
+    def _json(self, text: str = "") -> str:
+        import json as _j
+
+        try:
+            return _j.dumps(_j.loads(text), indent=2, ensure_ascii=False)
+        except Exception as e:
+            return f"json failed: {e}"
+
+    def _wc(self, text: str = "") -> str:
+        lines = text.splitlines()
+        words = text.split()
+        return f"{len(text)} chars, {len(words)} words, {len(lines)} lines"

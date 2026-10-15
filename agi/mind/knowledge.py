@@ -9,6 +9,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from agi.config import DATA_DIR
+from agi.mind.world import world_count, world_rows
+
+_WORLD: list[Article] | None = None
+
+
+def world_articles() -> list[Article]:
+    global _WORLD
+    if _WORLD is None:
+        _WORLD = [Article(t, tags, b) for t, tags, b in world_rows()]
+    return _WORLD
 
 
 @dataclass
@@ -189,7 +199,11 @@ class Knowledge:
         self.path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def all_articles(self) -> list[Article]:
-        return ARTICLES + self.taught
+        return ARTICLES + world_articles() + self.taught
+
+    def count(self) -> dict:
+        w = world_count()
+        return {"builtin": len(ARTICLES), "world": w, "taught": len(self.taught), "total": len(ARTICLES) + w + len(self.taught)}
 
     def teach(self, title: str, body: str, tags: tuple[str, ...] = ("taught",)) -> Article:
         title = title.strip()[:120] or "untitled"
@@ -201,23 +215,32 @@ class Knowledge:
         return art
 
     def search(self, query: str, k: int = 3) -> list[Article]:
-        q = query.lower()
-        toks = [t for t in re.split(r"\W+", q) if len(t) > 2]
+        q = query.lower().strip()
+        cap = re.search(r"capital of\s+(.+?)[\?\.!]*$", q)
+        if cap:
+            name = cap.group(1).strip()
+            q = f"capital of {name} {name}"
+        toks = [t for t in re.split(r"\W+", q) if len(t) > 1]
         scored = []
         for art in self.all_articles():
-            hay = (art.title + " " + " ".join(art.tags) + " " + art.body).lower()
+            title = art.title.lower()
+            hay = (title + " " + " ".join(art.tags) + " " + art.body).lower()
             score = 0.0
-            if art.title.lower() in q or q in art.title.lower():
-                score += 5
+            if title == q or title in q or q in title:
+                score += 8
+            if title.startswith(q) or q.startswith(title):
+                score += 4
             for tag in art.tags:
                 if tag in q:
                     score += 3
             for t in toks:
                 if t in hay:
                     score += 1
+                if t == title or t in title.split():
+                    score += 2
             if score:
                 scored.append((score, art))
-        scored.sort(key=lambda x: x[0], reverse=True)
+        scored.sort(key=lambda x: (-x[0], x[1].title))
         return [a for _, a in scored[:k]]
 
     def explain(self, query: str) -> str | None:
@@ -278,14 +301,26 @@ _UNIT = {
     "h": 3600.0, "hr": 3600.0, "hour": 3600.0, "hours": 3600.0,
     "day": 86400.0, "days": 86400.0,
     "b": 1.0, "byte": 1.0, "bytes": 1.0,
-    "kb": 1000.0, "mb": 1e6, "gb": 1e9, "kib": 1024.0, "mib": 1024**2, "gib": 1024**3,
+    "kb": 1000.0, "mb": 1e6, "gb": 1e9, "tb": 1e12, "kib": 1024.0, "mib": 1024**2, "gib": 1024**3,
+    "yd": 0.9144, "yard": 0.9144, "yards": 0.9144,
+    "nmi": 1852.0,
+    "l": 1.0, "liter": 1.0, "litre": 1.0, "liters": 1.0, "litres": 1.0,
+    "ml": 0.001, "milliliter": 0.001,
+    "gal": 3.785411784, "gallon": 3.785411784, "gallons": 3.785411784,
+    "qt": 0.946352946, "pint": 0.473176473, "cup": 0.236588236,
+    "w": 1.0, "watt": 1.0, "watts": 1.0,
+    "kw": 1000.0, "mw": 1e6,
+    "mph": 0.44704, "kph": 0.277778, "knot": 0.514444, "knots": 0.514444, "m/s": 1.0, "mps": 1.0,
 }
 
 _FAMILY = {
-    **{u: "len" for u in ("m", "meter", "meters", "km", "kilometer", "kilometers", "cm", "mm", "mi", "mile", "miles", "ft", "foot", "feet", "in", "inch", "inches")},
+    **{u: "len" for u in ("m", "meter", "meters", "km", "kilometer", "kilometers", "cm", "mm", "mi", "mile", "miles", "ft", "foot", "feet", "in", "inch", "inches", "yd", "yard", "yards", "nmi")},
     **{u: "mass" for u in ("g", "gram", "grams", "kg", "kilogram", "kilograms", "lb", "pound", "pounds", "oz")},
     **{u: "time" for u in ("s", "sec", "second", "seconds", "min", "minute", "minutes", "h", "hr", "hour", "hours", "day", "days")},
-    **{u: "data" for u in ("b", "byte", "bytes", "kb", "mb", "gb", "kib", "mib", "gib")},
+    **{u: "data" for u in ("b", "byte", "bytes", "kb", "mb", "gb", "tb", "kib", "mib", "gib")},
+    **{u: "vol" for u in ("l", "liter", "litre", "liters", "litres", "ml", "milliliter", "gal", "gallon", "gallons", "qt", "pint", "cup")},
+    **{u: "power" for u in ("w", "watt", "watts", "kw", "mw")},
+    **{u: "speed" for u in ("mph", "kph", "knot", "knots", "m/s", "mps")},
 }
 
 
@@ -302,6 +337,14 @@ def try_convert(text: str) -> str | None:
         return f"{val} °C = {val * 9/5 + 32:.2f} °F"
     if src in ("f", "fahrenheit") and dst in ("c", "celsius"):
         return f"{val} °F = {(val - 32) * 5/9:.2f} °C"
+    if src in ("c", "celsius") and dst in ("k", "kelvin"):
+        return f"{val} °C = {val + 273.15:.2f} K"
+    if src in ("k", "kelvin") and dst in ("c", "celsius"):
+        return f"{val} K = {val - 273.15:.2f} °C"
+    if src in ("f", "fahrenheit") and dst in ("k", "kelvin"):
+        return f"{val} °F = {(val - 32) * 5/9 + 273.15:.2f} K"
+    if src in ("k", "kelvin") and dst in ("f", "fahrenheit"):
+        return f"{val} K = {(val - 273.15) * 9/5 + 32:.2f} °F"
     if src not in _UNIT or dst not in _UNIT:
         return None
     if _FAMILY.get(src) != _FAMILY.get(dst):
