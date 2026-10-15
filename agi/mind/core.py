@@ -39,6 +39,14 @@ class AGI:
         dlg = self.memory.recent_dialogue(k=12)
         facts = self.memory.all_facts(k=12)
         arts = self.knowledge.taught[-4:] or self.knowledge.search("agi", k=2)
+        try:
+            import random
+
+            world = self.knowledge.all_articles()
+            if len(world) > 8:
+                arts = list(arts) + random.sample(world, 3)
+        except Exception:
+            pass
         parts = [self.identity.system_preamble()]
         if dlg:
             parts.append("\n".join(f"{d['role']}: {d['content'][:240]}" for d in dlg))
@@ -134,6 +142,7 @@ class AGI:
                 "loss": self.memory.metric_series("loss", 80),
                 "self_eval": self.memory.metric_series("self_eval", 40),
             },
+            "knowledge_count": self.knowledge.count(),
             "taught": [{"title": a.title, "tags": list(a.tags)} for a in self.knowledge.taught[-12:]],
             "latency_ms": self.last_latency_ms,
             "chain": self.last_chain,

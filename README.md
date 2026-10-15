@@ -12,6 +12,8 @@ Cortex AGI is not a wrapper around OpenAI. It loads weights from this repo:
 
 If no GGUF/HF file is present, it boots **CortexGPT** (a numpy transformer), trains on every conversation, and checkpoints itself to `model/cortex.safetensors`.
 
+Built-in **world knowledge** (`agi/mind/world.py`) is 777+ real articles — periodic table, capitals, states, planets, amino acids, HTTP, programming languages, constellations, and STEM/CS concepts. Retrieval and dream replay use them.
+
 ## Run
 
 ```bash
