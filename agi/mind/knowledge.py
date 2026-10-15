@@ -42,7 +42,8 @@ ARTICLES: list[Article] = [
         "The custom server loads model/model.gguf (llama.cpp) or model/model.safetensors "
         "(Llama, GPT-2, or CortexGPT). If neither file exists, a numpy GPT trains online and "
         "becomes the safetensors checkpoint. Generation uses a KV cache; learning uses Adam. "
-        "Inference is local — there is no remote model vendor.",
+        "Ollama and Cortex LLMHoster are mouths. Train models distills their replies into CortexGPT, "
+        "bakes an Ollama model named cortex-agi, and writes data/train.jsonl for llama.cpp.",
     ),
     Article(
         "Working memory vs long-term memory",

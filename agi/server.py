@@ -122,6 +122,10 @@ class HostsIn(BaseModel):
     openrouter: dict | None = None
 
 
+class TrainIn(BaseModel):
+    targets: list[str] | None = None
+
+
 class UpdateIn(BaseModel):
     restart: bool = True
 
@@ -274,6 +278,13 @@ def api_hosts_probe(body: HostsIn | None = None):
         if payload:
             get_hosts().patch(payload)
     return get_hosts().probe_all()
+
+
+@app.post("/api/train")
+async def api_train(body: TrainIn | None = None):
+    targets = (body.targets if body else None) or None
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, lambda: get_agi().train(targets))
 
 
 @app.get("/api/update")

@@ -27,6 +27,7 @@ PROMPTS = [
     {"id": "review", "title": "Review code", "body": "Review this code. Bugs, complexity, tests:\n\n```\n\n```"},
     {"id": "teach", "title": "Teach Cortex AGI", "body": "Learn this: Title — "},
     {"id": "improve", "title": "Self-improve", "body": "Improve yourself"},
+    {"id": "train", "title": "Train models", "body": "Train models"},
 ]
 
 
