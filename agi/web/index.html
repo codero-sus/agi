@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#05060a" />
+  <meta name="description" content="Cortex AGI — a local self-improving mind. Mouths speak; CortexGPT checkpoints to cortex.safetensors." />
   <title>Cortex AGI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -81,13 +83,13 @@
         </div>
         <form id="composer" autocomplete="off">
           <div class="mouth-bar">
-            <select id="mouth-sel" title="Chat through this mouth">
+            <select id="mouth-sel" title="Chat through this mouth" aria-label="Chat mouth">
               <option value="local">local · CortexGPT</option>
               <option value="ollama">Ollama</option>
               <option value="hoster">LLMHoster</option>
               <option value="openrouter">OpenRouter</option>
             </select>
-            <select id="mouth-model" title="Model"></select>
+            <select id="mouth-model" title="Model" aria-label="Chat model"></select>
             <button type="button" id="mouth-cfg" class="ghost sm" title="Hosts &amp; train">hosts</button>
           </div>
           <div class="composer-meta">

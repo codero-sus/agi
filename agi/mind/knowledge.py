@@ -179,6 +179,7 @@ class Knowledge:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.path = path or (DATA_DIR / "knowledge.json")
         self.taught: list[Article] = []
+        self._title_idx: dict[str, Article] | None = None
         self._load()
 
     def _load(self) -> None:
@@ -193,10 +194,13 @@ class Knowledge:
             ]
         except Exception:
             self.taught = []
+        self._title_idx = None
 
     def _save(self) -> None:
         payload = [{"title": a.title, "tags": list(a.tags), "body": a.body} for a in self.taught]
-        self.path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp = self.path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(self.path)
 
     def all_articles(self) -> list[Article]:
         return ARTICLES + world_articles() + self.taught
@@ -205,16 +209,47 @@ class Knowledge:
         w = world_count()
         return {"builtin": len(ARTICLES), "world": w, "taught": len(self.taught), "total": len(ARTICLES) + w + len(self.taught)}
 
+    def _titles(self) -> dict[str, Article]:
+        if self._title_idx is None:
+            self._title_idx = {a.title.lower(): a for a in self.all_articles()}
+        return self._title_idx
+
+    def lookup(self, query: str) -> Article | None:
+        """Exact-title / capital-of / symbol-for lookup against the world corpus."""
+        q = query.lower().strip().rstrip("?.! ")
+        q = re.sub(r"^(what(?:'s| is)|who's|who is|where is|tell me(?: about)?)\s+", "", q).strip()
+        idx = self._titles()
+        if q in idx:
+            return idx[q]
+        m = re.search(r"capital of\s+(.+)$", q)
+        if m:
+            name = m.group(1).strip()
+            return idx.get("capital of " + name) or idx.get(name)
+        m = re.search(r"(?:chemical )?symbol (?:for|of)\s+(.+)$", q)
+        if m:
+            name = m.group(1).strip()
+            return idx.get(name) or idx.get("symbol " + name)
+        m = re.search(r"^element\s+(\d+)$", q)
+        if m:
+            z = m.group(1)
+            for a in idx.values():
+                if f"element {z}." in a.body.lower() or f"atomic number {z}" in a.body.lower():
+                    return a
+        return None
+
     def teach(self, title: str, body: str, tags: tuple[str, ...] = ("taught",)) -> Article:
         title = title.strip()[:120] or "untitled"
         body = body.strip()[:4000]
         art = Article(title, tags or ("taught",), body)
         self.taught = [a for a in self.taught if a.title.lower() != title.lower()]
         self.taught.append(art)
+        self._title_idx = None
         self._save()
         return art
 
     def search(self, query: str, k: int = 3) -> list[Article]:
+        k = max(1, int(k))
+        hit = self.lookup(query)
         q = query.lower().strip()
         cap = re.search(r"capital of\s+(.+?)[\?\.!]*$", q)
         if cap:
@@ -222,8 +257,11 @@ class Knowledge:
             q = f"capital of {name} {name}"
         toks = [t for t in re.split(r"\W+", q) if len(t) > 1]
         scored = []
+        skip = hit.title.lower() if hit else ""
         for art in self.all_articles():
             title = art.title.lower()
+            if title == skip:
+                continue
             hay = (title + " " + " ".join(art.tags) + " " + art.body).lower()
             score = 0.0
             if title == q or title in q or q in title:
@@ -241,7 +279,8 @@ class Knowledge:
             if score:
                 scored.append((score, art))
         scored.sort(key=lambda x: (-x[0], x[1].title))
-        return [a for _, a in scored[:k]]
+        out = ([hit] if hit else []) + [a for _, a in scored]
+        return out[:k]
 
     def explain(self, query: str) -> str | None:
         hits = self.search(query, k=2)
