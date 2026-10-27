@@ -178,8 +178,20 @@ def index():
 
 @app.get("/health")
 def health():
+    from agi.config import CORTEX_SAFETENSORS_PATH
+
     loc = local_update()
-    return {"ok": True, "name": __name_pretty__, "version": __version__, "sha": loc.get("sha") or None, "branch": loc.get("branch")}
+    agi = get_agi()
+    return {
+        "ok": True,
+        "name": __name_pretty__,
+        "version": __version__,
+        "sha": loc.get("sha") or None,
+        "branch": loc.get("branch"),
+        "checkpoint": CORTEX_SAFETENSORS_PATH.exists(),
+        "knowledge": agi.knowledge.count(),
+        "mouth": get_hosts().snapshot().get("active") or "local",
+    }
 
 
 @app.get("/api/state")

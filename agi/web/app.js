@@ -10,7 +10,7 @@ const settings = Object.assign(
   JSON.parse(localStorage.getItem("cortex.settings") || "{}")
 );
 
-let ws, pingTimer;
+let ws, pingTimer, reconnectMs = 1200;
 let thinking = false;
 let currentAgi = null;
 let state = null;
@@ -43,6 +43,7 @@ function connect() {
   ws.onopen = () => {
     setConn(true);
     setThinking(false);
+    reconnectMs = 1200;
     if (pingTimer) clearInterval(pingTimer);
     pingTimer = setInterval(() => {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
@@ -51,9 +52,14 @@ function connect() {
   ws.onclose = () => {
     setConn(false);
     if (pingTimer) clearInterval(pingTimer);
-    setTimeout(connect, 1200);
+    setTimeout(connect, reconnectMs);
+    reconnectMs = Math.min(8000, Math.round(reconnectMs * 1.5));
   };
-  ws.onmessage = (ev) => handle(JSON.parse(ev.data));
+  ws.onmessage = (ev) => {
+    try {
+      handle(JSON.parse(ev.data));
+    } catch (_) {}
+  };
 }
 
 function handle(msg) {
@@ -324,7 +330,7 @@ form.addEventListener("submit", (e) => {
   send();
 });
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey && settings.enter) {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey || (!e.shiftKey && settings.enter))) {
     e.preventDefault();
     send();
   }
@@ -353,6 +359,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     $("palette").hidden = true;
     $("settings").hidden = true;
+    if (thinking && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "stop" }));
+      setThinking(false);
+    }
   }
 });
 
