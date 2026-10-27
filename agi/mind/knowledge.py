@@ -1,0 +1,396 @@
+"""Built-in semantic knowledge the AGI can reason over and extend."""
+
+from __future__ import annotations
+
+import json
+import math
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from agi.config import DATA_DIR
+from agi.mind.world import world_count, world_rows
+
+_WORLD: list[Article] | None = None
+
+
+def world_articles() -> list[Article]:
+    global _WORLD
+    if _WORLD is None:
+        _WORLD = [Article(t, tags, b) for t, tags, b in world_rows()]
+    return _WORLD
+
+
+@dataclass
+class Article:
+    title: str
+    tags: tuple[str, ...]
+    body: str
+
+
+ARTICLES: list[Article] = [
+    Article(
+        "AGI",
+        ("agi", "intelligence", "ai", "cortex"),
+        "Artificial General Intelligence is a system that can learn, reason, and act across "
+        "domains rather than a single task. Cortex AGI approaches AGI as a loop: perceive, "
+        "recall, plan, act, reflect, and rewrite itself. Capabilities compound when memory, "
+        "skills, and a trainable neural core share the same lifetime.",
+    ),
+    Article(
+        "Self-improvement",
+        ("improve", "learning", "training", "skill"),
+        "Self-improvement here is not a slogan. After each turn Cortex AGI stores episodes, "
+        "extracts facts, critiques its reply, and may write a reusable skill. Periodically it "
+        "runs a self-eval battery, trains CortexGPT on its own traces, and evolves its constitution. "
+        "Weights are written to model/cortex.safetensors. Training runs in a background thread "
+        "so replies stay fast.",
+    ),
+    Article(
+        "Neural core",
+        ("model", "safetensors", "gguf", "gpt", "inference"),
+        "The custom server loads model/model.gguf (llama.cpp) or model/model.safetensors "
+        "(Hugging Face Llama / GPT-2). CortexGPT always trains and checkpoints to "
+        "model/cortex.safetensors. Generation uses a KV cache; learning uses Adam. "
+        "Ollama and Cortex LLMHoster are mouths: pick one to chat through it, or train models "
+        "to distill their replies into CortexGPT and bake an Ollama model named cortex-agi.",
+    ),
+    Article(
+        "Working memory vs long-term memory",
+        ("memory", "cognition", "recall"),
+        "Working memory holds the current dialogue. Long-term memory is episodic (what was said), "
+        "semantic (facts as triples), and procedural (skills as code). Retrieval uses hashed "
+        "embeddings in a numpy index so recall is a matrix-vector product, not a Python loop.",
+    ),
+    Article(
+        "Mathematics",
+        ("math", "algebra", "calculus", "number"),
+        "Arithmetic, algebra, and calculus are languages for structure. Derivatives measure "
+        "instantaneous change; integrals accumulate. Linear algebra studies maps between vector "
+        "spaces — the same maps a neural net applies at every layer. Probability quantifies uncertainty.",
+    ),
+    Article(
+        "Photosynthesis",
+        ("biology", "plant", "energy", "photosynthesis"),
+        "Photosynthesis converts light, water, and carbon dioxide into sugars and oxygen. "
+        "In plants, chlorophyll in chloroplasts absorbs photons; the light reactions split water "
+        "and fill energy carriers (ATP, NADPH); the Calvin cycle fixes CO2 into glucose.",
+    ),
+    Article(
+        "Relativity and quantum",
+        ("physics", "relativity", "quantum", "spacetime"),
+        "Special relativity: the speed of light is invariant; time and space mix. General relativity: "
+        "mass-energy curves spacetime, and curvature tells matter how to move. Quantum theory: "
+        "systems have amplitudes; measurement yields probabilities. Unifying the two remains open.",
+    ),
+    Article(
+        "Computation",
+        ("computer", "algorithm", "turing", "complexity"),
+        "A Turing machine can simulate any effective procedure. Complexity asks how time and memory "
+        "grow with input size. P vs NP asks whether every efficiently checkable problem is efficiently "
+        "solvable. Neural nets are differentiable programs trained by gradient descent.",
+    ),
+    Article(
+        "Gradient descent",
+        ("training", "loss", "gradient", "backprop", "adam"),
+        "Learning is reducing a loss. Backpropagation applies the chain rule through a computation "
+        "graph. Adam keeps exponential moving averages of the gradient and its square so steps "
+        "adapt per-parameter. Cortex AGI trains CortexGPT this way and checkpoints to safetensors.",
+    ),
+    Article(
+        "Transformers",
+        ("transformer", "attention", "kv", "cache"),
+        "A transformer mixes tokens with attention: queries look up keys and read values. "
+        "Causal masks stop a token seeing the future. A KV cache stores past keys and values "
+        "so generating token t+1 does not recompute the whole prompt.",
+    ),
+    Article(
+        "Language",
+        ("language", "token", "meaning"),
+        "Language models predict the next token. Meaning emerges when prediction is grounded in "
+        "memory, tools, and goals. Cortex AGI wraps a language model in a cognitive loop so that "
+        "replies are planned, recalled, and then critiqued — not merely sampled.",
+    ),
+    Article(
+        "Ethics of agency",
+        ("ethics", "agency", "value"),
+        "An agent that improves itself must keep its values intact while its skills grow. "
+        "Cortex AGI's constitution is versioned and only expands with lessons that survive critique. "
+        "It prefers honesty, user autonomy, and reversible changes.",
+    ),
+    Article(
+        "Earth",
+        ("earth", "planet", "world"),
+        "Earth is a rocky planet orbiting the Sun at ~1 AU, with a nitrogen-oxygen atmosphere, "
+        "liquid water, and a biosphere. It formed about 4.54 billion years ago.",
+    ),
+    Article(
+        "Chain of thought",
+        ("thinking", "reason", "chain", "system 2", "deliberate", "hypothesis"),
+        "Super-general intelligence is not a single lookup. It is a chain: restate the question, "
+        "choose a strategy (causal, compare, first principles, plan), split into subquestions, "
+        "retrieve evidence, hold competing hypotheses, attack the winner, then speak. "
+        "Cortex AGI runs this loop as System 2 and streams every step. Fast facts stay System 1.",
+    ),
+    Article(
+        "Time",
+        ("time", "clock", "date"),
+        "Time is the dimension in which events are ordered. Computers count it from the Unix epoch. "
+        "Humans divide it into seconds, hours, days, years. An AGI that lives across sessions "
+        "experiences time as the accumulation of memory and skill.",
+    ),
+    Article(
+        "DNA",
+        ("dna", "gene", "biology", "genome"),
+        "DNA is a double helix of nucleotide base pairs (A-T, C-G) that stores genetic instructions. "
+        "Transcription copies DNA to RNA; translation reads RNA into proteins. Mutations change the "
+        "sequence and are the raw material of evolution.",
+    ),
+    Article(
+        "Electricity",
+        ("electricity", "energy", "current", "voltage"),
+        "Electric current is the flow of charge. Voltage is potential difference; resistance opposes "
+        "flow (Ohm's law: V = IR). Power is VI. In computation, switching tiny charges in transistors "
+        "is how bits move.",
+    ),
+    Article(
+        "Climate",
+        ("climate", "carbon", "warming", "atmosphere"),
+        "Earth's climate is the long-run statistics of weather. Greenhouse gases (CO2, methane) "
+        "trap outgoing infrared, warming the surface. Burning fossil carbon is the main recent driver.",
+    ),
+    Article(
+        "Internet",
+        ("internet", "network", "tcp", "packet"),
+        "The internet is a packet-switched network of networks. IP routes packets; TCP makes streams "
+        "reliable; TLS encrypts them. The web is HTTP on top. DNS maps names to addresses.",
+    ),
+    Article(
+        "India",
+        ("india", "delhi", "ghaziabad", "asia"),
+        "India is a South Asian republic. Its capital is New Delhi. Ghaziabad, in Uttar Pradesh, "
+        "sits in the National Capital Region east of Delhi. IST is UTC+5:30.",
+    ),
+]
+
+
+class Knowledge:
+    def __init__(self, path: Path | None = None):
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.path = path or (DATA_DIR / "knowledge.json")
+        self.taught: list[Article] = []
+        self._title_idx: dict[str, Article] | None = None
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path.exists():
+            return
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            self.taught = [
+                Article(a["title"], tuple(a.get("tags") or ("taught",)), a["body"])
+                for a in raw
+                if a.get("title") and a.get("body")
+            ]
+        except Exception:
+            self.taught = []
+        self._title_idx = None
+
+    def _save(self) -> None:
+        payload = [{"title": a.title, "tags": list(a.tags), "body": a.body} for a in self.taught]
+        tmp = self.path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(self.path)
+
+    def all_articles(self) -> list[Article]:
+        return ARTICLES + world_articles() + self.taught
+
+    def count(self) -> dict:
+        w = world_count()
+        return {"builtin": len(ARTICLES), "world": w, "taught": len(self.taught), "total": len(ARTICLES) + w + len(self.taught)}
+
+    def _titles(self) -> dict[str, Article]:
+        if self._title_idx is None:
+            self._title_idx = {a.title.lower(): a for a in self.all_articles()}
+        return self._title_idx
+
+    def lookup(self, query: str) -> Article | None:
+        """Exact-title / capital-of / symbol-for lookup against the world corpus."""
+        q = query.lower().strip().rstrip("?.! ")
+        q = re.sub(r"^(what(?:'s| is)|who's|who is|where is|tell me(?: about)?)\s+", "", q).strip()
+        idx = self._titles()
+        if q in idx:
+            return idx[q]
+        m = re.search(r"capital of\s+(.+)$", q)
+        if m:
+            name = m.group(1).strip()
+            return idx.get("capital of " + name) or idx.get(name)
+        m = re.search(r"(?:chemical )?symbol (?:for|of)\s+(.+)$", q)
+        if m:
+            name = m.group(1).strip()
+            return idx.get(name) or idx.get("symbol " + name)
+        m = re.search(r"^element\s+(\d+)$", q)
+        if m:
+            z = m.group(1)
+            for a in idx.values():
+                if f"element {z}." in a.body.lower() or f"atomic number {z}" in a.body.lower():
+                    return a
+        return None
+
+    def teach(self, title: str, body: str, tags: tuple[str, ...] = ("taught",)) -> Article:
+        title = title.strip()[:120] or "untitled"
+        body = body.strip()[:4000]
+        art = Article(title, tags or ("taught",), body)
+        self.taught = [a for a in self.taught if a.title.lower() != title.lower()]
+        self.taught.append(art)
+        self._title_idx = None
+        self._save()
+        return art
+
+    def search(self, query: str, k: int = 3) -> list[Article]:
+        k = max(1, int(k))
+        hit = self.lookup(query)
+        q = query.lower().strip()
+        cap = re.search(r"capital of\s+(.+?)[\?\.!]*$", q)
+        if cap:
+            name = cap.group(1).strip()
+            q = f"capital of {name} {name}"
+        toks = [t for t in re.split(r"\W+", q) if len(t) > 1]
+        scored = []
+        skip = hit.title.lower() if hit else ""
+        for art in self.all_articles():
+            title = art.title.lower()
+            if title == skip:
+                continue
+            hay = (title + " " + " ".join(art.tags) + " " + art.body).lower()
+            score = 0.0
+            if title == q or title in q or q in title:
+                score += 8
+            if title.startswith(q) or q.startswith(title):
+                score += 4
+            for tag in art.tags:
+                if tag in q:
+                    score += 3
+            for t in toks:
+                if t in hay:
+                    score += 1
+                if t == title or t in title.split():
+                    score += 2
+            if score:
+                scored.append((score, art))
+        scored.sort(key=lambda x: (-x[0], x[1].title))
+        out = ([hit] if hit else []) + [a for _, a in scored]
+        return out[:k]
+
+    def explain(self, query: str) -> str | None:
+        hits = self.search(query, k=2)
+        if not hits:
+            return None
+        return "\n\n".join(f"{h.title}. {h.body}" for h in hits)
+
+
+SAFE_MATH_RE = re.compile(r"^[\d\s\+\-\*\/\%\.\(\)\,eE\^]+$")
+
+
+def try_math(expr: str) -> str | None:
+    raw = expr.strip().rstrip("? ")
+    m = re.search(
+        r"(?:what(?:'s| is)|calculate|compute|eval(?:uate)?)\s+(.+)$", raw, re.I
+    )
+    if m:
+        raw = m.group(1)
+    raw = raw.lower().strip()
+    raw = raw.replace("times", "*").replace("plus", "+").replace("minus", "-")
+    raw = raw.replace("divided by", "/").replace("over", "/")
+    raw = raw.replace("to the power of", "**").replace("squared", "**2")
+    raw = raw.replace("^", "**")
+    raw = re.sub(r"(?<=\d)\s*x\s*(?=\d)", "*", raw)
+    raw = re.sub(r"[^0-9eE\+\-\*\/\%\.\(\)\s]", "", raw)
+    raw = raw.strip()
+    if not raw or len(raw) > 120 or not re.search(r"\d", raw):
+        return None
+    probe = raw.replace("**", "")
+    if not SAFE_MATH_RE.match(probe):
+        return None
+    try:
+        val = eval(raw, {"__builtins__": {}}, {"pi": math.pi, "e": math.e, "sqrt": math.sqrt})  # noqa: S307
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            if isinstance(val, float) and val.is_integer():
+                val = int(val)
+            return str(val)
+    except Exception:
+        return None
+    return None
+
+
+# base unit: meter, gram, second, celsius stored as K, byte
+_UNIT = {
+    "m": 1.0, "meter": 1.0, "meters": 1.0,
+    "km": 1000.0, "kilometer": 1000.0, "kilometers": 1000.0,
+    "cm": 0.01, "mm": 0.001,
+    "mi": 1609.344, "mile": 1609.344, "miles": 1609.344,
+    "ft": 0.3048, "foot": 0.3048, "feet": 0.3048,
+    "in": 0.0254, "inch": 0.0254, "inches": 0.0254,
+    "g": 1.0, "gram": 1.0, "grams": 1.0,
+    "kg": 1000.0, "kilogram": 1000.0, "kilograms": 1000.0,
+    "lb": 453.592, "pound": 453.592, "pounds": 453.592,
+    "oz": 28.3495,
+    "s": 1.0, "sec": 1.0, "second": 1.0, "seconds": 1.0,
+    "min": 60.0, "minute": 60.0, "minutes": 60.0,
+    "h": 3600.0, "hr": 3600.0, "hour": 3600.0, "hours": 3600.0,
+    "day": 86400.0, "days": 86400.0,
+    "b": 1.0, "byte": 1.0, "bytes": 1.0,
+    "kb": 1000.0, "mb": 1e6, "gb": 1e9, "tb": 1e12, "kib": 1024.0, "mib": 1024**2, "gib": 1024**3,
+    "yd": 0.9144, "yard": 0.9144, "yards": 0.9144,
+    "nmi": 1852.0,
+    "l": 1.0, "liter": 1.0, "litre": 1.0, "liters": 1.0, "litres": 1.0,
+    "ml": 0.001, "milliliter": 0.001,
+    "gal": 3.785411784, "gallon": 3.785411784, "gallons": 3.785411784,
+    "qt": 0.946352946, "pint": 0.473176473, "cup": 0.236588236,
+    "w": 1.0, "watt": 1.0, "watts": 1.0,
+    "kw": 1000.0, "mw": 1e6,
+    "mph": 0.44704, "kph": 0.277778, "knot": 0.514444, "knots": 0.514444, "m/s": 1.0, "mps": 1.0,
+}
+
+_FAMILY = {
+    **{u: "len" for u in ("m", "meter", "meters", "km", "kilometer", "kilometers", "cm", "mm", "mi", "mile", "miles", "ft", "foot", "feet", "in", "inch", "inches", "yd", "yard", "yards", "nmi")},
+    **{u: "mass" for u in ("g", "gram", "grams", "kg", "kilogram", "kilograms", "lb", "pound", "pounds", "oz")},
+    **{u: "time" for u in ("s", "sec", "second", "seconds", "min", "minute", "minutes", "h", "hr", "hour", "hours", "day", "days")},
+    **{u: "data" for u in ("b", "byte", "bytes", "kb", "mb", "gb", "tb", "kib", "mib", "gib")},
+    **{u: "vol" for u in ("l", "liter", "litre", "liters", "litres", "ml", "milliliter", "gal", "gallon", "gallons", "qt", "pint", "cup")},
+    **{u: "power" for u in ("w", "watt", "watts", "kw", "mw")},
+    **{u: "speed" for u in ("mph", "kph", "knot", "knots", "m/s", "mps")},
+}
+
+
+def try_convert(text: str) -> str | None:
+    m = re.search(
+        r"(?:convert\s+)?(-?[\d\.]+)\s*([a-zA-Z]+)\s+(?:to|into|in)\s+([a-zA-Z]+)",
+        text.strip(),
+        re.I,
+    )
+    if not m:
+        return None
+    val, src, dst = float(m.group(1)), m.group(2).lower(), m.group(3).lower()
+    if src in ("c", "celsius") and dst in ("f", "fahrenheit"):
+        return f"{val} °C = {val * 9/5 + 32:.2f} °F"
+    if src in ("f", "fahrenheit") and dst in ("c", "celsius"):
+        return f"{val} °F = {(val - 32) * 5/9:.2f} °C"
+    if src in ("c", "celsius") and dst in ("k", "kelvin"):
+        return f"{val} °C = {val + 273.15:.2f} K"
+    if src in ("k", "kelvin") and dst in ("c", "celsius"):
+        return f"{val} K = {val - 273.15:.2f} °C"
+    if src in ("f", "fahrenheit") and dst in ("k", "kelvin"):
+        return f"{val} °F = {(val - 32) * 5/9 + 273.15:.2f} K"
+    if src in ("k", "kelvin") and dst in ("f", "fahrenheit"):
+        return f"{val} K = {(val - 273.15) * 9/5 + 32:.2f} °F"
+    if src not in _UNIT or dst not in _UNIT:
+        return None
+    if _FAMILY.get(src) != _FAMILY.get(dst):
+        return None
+    out = val * _UNIT[src] / _UNIT[dst]
+    if abs(out - round(out)) < 1e-9:
+        out_s = str(int(round(out)))
+    else:
+        out_s = f"{out:.6g}"
+    return f"{val} {src} = {out_s} {dst}"
